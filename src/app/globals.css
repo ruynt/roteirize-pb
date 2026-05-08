@@ -1,26 +1,99 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --verde-natureza: #10b981;
+  --azul-confianca: #0f4c5c;
+  --azul-descoberta: #1e88e5;
+  --dourado-acolhimento: #f2c98a;
+  --branco-leveza: #f5f7f8;
+  --texto-principal: #0f2433;
+  --texto-secundario: #45617a;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  background: var(--branco-leveza);
+  color: var(--texto-principal);
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+button,
+.font-heading {
+  font-family: var(--font-poppins), Arial, Helvetica, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+input,
+select,
+textarea {
+  color: var(--texto-principal);
+  background-color: #ffffff;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8;
+}
+
+select option {
+  color: var(--texto-principal);
+  background-color: #ffffff;
+}
+
+.card-shadow {
+  box-shadow: 0 18px 45px rgba(15, 76, 92, 0.09);
+}
+
+.hero-gradient {
+  background:
+    linear-gradient(120deg, rgba(15, 76, 92, 0.96), rgba(16, 185, 129, 0.78)),
+    radial-gradient(circle at top right, rgba(242, 201, 138, 0.9), transparent 34%),
+    linear-gradient(135deg, #0f4c5c, #1e88e5);
+}
+
+.soft-grid {
+  background-image:
+    linear-gradient(rgba(15, 76, 92, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 76, 92, 0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.brand-text-gradient {
+  background: linear-gradient(90deg, #0f4c5c, #10b981, #1e88e5);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.brand-button {
+  background: linear-gradient(90deg, #10b981, #1e88e5);
+  color: white;
+}
+
+.brand-button:hover {
+  filter: brightness(0.96);
+}
+
+.brand-outline {
+  border-color: rgba(15, 76, 92, 0.14);
 }
