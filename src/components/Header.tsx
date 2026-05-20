@@ -55,6 +55,7 @@ export default function Header() {
                 alt="Roteirize PB"
                 fill
                 priority
+                sizes="265px"
                 className="object-contain object-left"
               />
             </div>
@@ -65,6 +66,7 @@ export default function Header() {
                 alt="Roteirize PB"
                 fill
                 priority
+                sizes="56px"
                 className="object-contain"
               />
             </div>

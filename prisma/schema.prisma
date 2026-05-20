@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  TOURIST
+  PARTNER
+  ADMIN
+}
+
+enum PlaceCategory {
+  PRAIA
+  CULTURA
+  GASTRONOMIA
+  NATUREZA
+  EXPERIENCIA
+}
+
+enum CostLevel {
+  GRATUITO
+  ECONOMICO
+  MEDIO
+  ALTO
+}
+
+enum AccessibilityLevel {
+  BAIXA
+  MEDIA
+  ALTA
+}
+
+enum PartnerRequestStatus {
+  AGUARDANDO_APROVACAO
+  APROVADO
+  REJEITADO
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  role      Role     @default(TOURIST)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reviews       Review[]
+  itineraries   Itinerary[]
+  partnerPlaces Place[]          @relation("PartnerPlaces")
+  requests      PartnerRequest[]
+}
+
+model Place {
+  id                   String             @id @default(uuid())
+  name                 String
+  city                 String
+  category             PlaceCategory
+  description          String
+  address              String
+  costLevel            CostLevel
+  estimatedPrice       String
+  rating               Float              @default(0)
+  suggestedDurationMin Int
+  idealTime            String
+  accessibility        AccessibilityLevel
+  tags                 String[]
+  distanceFromCenterKm Float
+  imageClass           String
+  approved             Boolean            @default(true)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  partnerId String?
+  partner   User?   @relation("PartnerPlaces", fields: [partnerId], references: [id])
+
+  reviews        Review[]
+  itineraryStops ItineraryStop[]
+}
+
+model PartnerRequest {
+  id            String               @id @default(uuid())
+  name          String
+  type          String
+  city          String
+  address       String
+  description   String
+  schedule      String?
+  priceRange    String?
+  contact       String?
+  accessibility AccessibilityLevel   @default(MEDIA)
+  status        PartnerRequestStatus @default(AGUARDANDO_APROVACAO)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  userId  String
+  placeId String
+
+  user  User  @relation(fields: [userId], references: [id])
+  place Place @relation(fields: [placeId], references: [id])
+}
+
+model Itinerary {
+  id             String   @id @default(uuid())
+  title          String
+  cityBase       String
+  availableHours Int
+  startTime      String
+  transport      String
+  budget         String
+  pace           String
+  includeLunch   Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  stops ItineraryStop[]
+}
+
+model ItineraryStop {
+  id                 String @id @default(uuid())
+  order              Int
+  arrivalTime        String
+  departureTime      String
+  displacementBefore Int
+
+  itineraryId String
+  placeId     String
+
+  itinerary Itinerary @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+  place     Place     @relation(fields: [placeId], references: [id])
+}

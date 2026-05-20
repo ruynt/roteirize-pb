@@ -1,3 +1,4 @@
+import BotaoAdicionarLugar from "@/components/BotaoAdicionarLugar";
 import Header from "@/components/Header";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -223,12 +224,7 @@ export default async function DetalhesLugarPage({
                 </div>
               </div>
 
-              <Link
-                href="/criar-roteiro"
-                className="mt-6 block rounded-2xl bg-[#10B981] px-5 py-4 text-center font-black text-white transition hover:bg-[#1E88E5]"
-              >
-                Criar roteiro com este local
-              </Link>
+              <BotaoAdicionarLugar lugarId={lugar.id} />
 
               <Link
                 href="/explorar"
