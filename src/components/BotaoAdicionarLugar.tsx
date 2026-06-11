@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 const CHAVE_LUGARES_SELECIONADOS = "roteirize_lugares_selecionados";
 
 type BotaoAdicionarLugarProps = {
-  lugarId: number;
+  lugarId: string;
 };
 
 export default function BotaoAdicionarLugar({
@@ -16,8 +16,8 @@ export default function BotaoAdicionarLugar({
   function adicionarLugarECriarRoteiro() {
     const lugaresSalvos = localStorage.getItem(CHAVE_LUGARES_SELECIONADOS);
 
-    const lugaresSelecionados: number[] = lugaresSalvos
-      ? JSON.parse(lugaresSalvos)
+    const lugaresSelecionados: string[] = lugaresSalvos
+      ? JSON.parse(lugaresSalvos).map(String)
       : [];
 
     const jaSelecionado = lugaresSelecionados.includes(lugarId);
@@ -28,7 +28,7 @@ export default function BotaoAdicionarLugar({
 
     localStorage.setItem(
       CHAVE_LUGARES_SELECIONADOS,
-      JSON.stringify(novosSelecionados)
+      JSON.stringify(novosSelecionados),
     );
 
     router.push("/criar-roteiro");

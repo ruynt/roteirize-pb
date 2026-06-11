@@ -2,10 +2,17 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
-const links = [
+const CHAVE_USUARIO = "roteirize_usuario";
+
+type UsuarioLogado = {
+  perfil: "TOURIST" | "PARTNER" | "ADMIN";
+  perfilLabel: string;
+};
+
+const linksBase = [
   {
     label: "Início",
     href: "/",
@@ -23,18 +30,46 @@ const links = [
     href: "/roteiros-salvos",
   },
   {
-    label: "Parceiros",
-    href: "/parceiro",
+    label: "Passaporte",
+    href: "/passaporte",
   },
   {
-    label: "Admin",
-    href: "/admin",
+    label: "Parceiros",
+    href: "/parceiro",
   },
 ];
 
 export default function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const [menuAberto, setMenuAberto] = useState(false);
+  const [usuario, setUsuario] = useState<UsuarioLogado | null>(null);
+
+  useEffect(() => {
+    const usuarioSalvo = localStorage.getItem(CHAVE_USUARIO);
+
+    if (usuarioSalvo) {
+      try {
+        setUsuario(JSON.parse(usuarioSalvo) as UsuarioLogado);
+      } catch {
+        localStorage.removeItem(CHAVE_USUARIO);
+      }
+    }
+  }, []);
+
+  const links = useMemo(() => {
+    if (usuario?.perfil === "ADMIN") {
+      return [
+        ...linksBase,
+        {
+          label: "Admin",
+          href: "/admin",
+        },
+      ];
+    }
+
+    return linksBase;
+  }, [usuario]);
 
   function linkAtivo(href: string) {
     if (href === "/") {
@@ -44,10 +79,17 @@ export default function Header() {
     return pathname.startsWith(href);
   }
 
+  function sair() {
+    localStorage.removeItem(CHAVE_USUARIO);
+    setUsuario(null);
+    setMenuAberto(false);
+    router.push("/");
+  }
+
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-xl">
       <div className="mx-auto max-w-7xl px-5 py-3">
-        <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3 md:grid-cols-[285px_1fr_150px]">
+        <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3 md:grid-cols-[285px_1fr_auto]">
           <Link href="/" className="flex items-center">
             <div className="relative hidden h-14 w-[265px] md:block">
               <Image
@@ -97,12 +139,27 @@ export default function Header() {
               Menu
             </button>
 
-            <Link
-              href="/login"
-              className="font-heading rounded-full bg-[#0F4C5C] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#10B981] md:px-6"
-            >
-              Entrar
-            </Link>
+            {usuario ? (
+              <div className="hidden items-center gap-2 md:flex">
+                <span className="font-heading rounded-full bg-[#10B981]/10 px-4 py-2 text-xs font-bold text-[#0F4C5C]">
+                  {usuario.perfilLabel}
+                </span>
+
+                <button
+                  onClick={sair}
+                  className="font-heading rounded-full bg-[#0F4C5C] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#10B981]"
+                >
+                  Sair
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="font-heading rounded-full bg-[#0F4C5C] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#10B981] md:px-6"
+              >
+                Entrar
+              </Link>
+            )}
           </div>
         </div>
 
@@ -122,6 +179,23 @@ export default function Header() {
                 {link.label}
               </Link>
             ))}
+
+            {usuario ? (
+              <button
+                onClick={sair}
+                className="font-heading rounded-2xl bg-[#0F4C5C] px-4 py-3 text-left text-sm font-bold text-white"
+              >
+                Sair da conta • {usuario.perfilLabel}
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                onClick={() => setMenuAberto(false)}
+                className="font-heading rounded-2xl bg-[#0F4C5C] px-4 py-3 text-sm font-bold text-white"
+              >
+                Entrar
+              </Link>
+            )}
           </nav>
         )}
       </div>

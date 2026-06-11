@@ -2,21 +2,9 @@
 
 import Header from "@/components/Header";
 import Link from "next/link";
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 
-const tipos = [
-  "Ponto turístico",
-  "Restaurante",
-  "Guia turístico",
-  "Experiência cultural",
-  "Artesanato",
-  "Evento",
-  "Ecoturismo",
-  "Outro",
-];
-
-type SolicitacaoParceiro = {
-  id: number;
+type FormularioParceiro = {
   nome: string;
   tipo: string;
   cidade: string;
@@ -26,303 +14,340 @@ type SolicitacaoParceiro = {
   preco: string;
   contato: string;
   acessibilidade: string;
-  status: "Aguardando aprovação" | "Aprovado" | "Rejeitado";
-  criadoEm: string;
 };
 
+const formularioInicial: FormularioParceiro = {
+  nome: "",
+  tipo: "Ponto turístico",
+  cidade: "João Pessoa",
+  endereco: "",
+  descricao: "",
+  horario: "",
+  preco: "",
+  contato: "",
+  acessibilidade: "Média",
+};
+
+const tipos = [
+  "Ponto turístico",
+  "Restaurante",
+  "Guia turístico",
+  "Artesanato",
+  "Experiência local",
+  "Hospedagem",
+  "Transporte turístico",
+];
+
+const cidades = [
+  "João Pessoa",
+  "Cabedelo",
+  "Conde",
+  "Campina Grande",
+  "Areia",
+  "Bananeiras",
+  "Outras cidades",
+];
+
+const niveisAcessibilidade = ["Baixa", "Média", "Alta"];
+
 export default function ParceiroPage() {
-  const [enviado, setEnviado] = useState(false);
+  const [formulario, setFormulario] =
+    useState<FormularioParceiro>(formularioInicial);
+  const [enviando, setEnviando] = useState(false);
+  const [mensagem, setMensagem] = useState("");
+  const [erro, setErro] = useState("");
 
-  const [formulario, setFormulario] = useState({
-    nome: "",
-    tipo: "Ponto turístico",
-    cidade: "",
-    endereco: "",
-    descricao: "",
-    horario: "",
-    preco: "",
-    contato: "",
-    acessibilidade: "Média",
-  });
-
-  function atualizarCampo(campo: string, valor: string) {
-    setFormulario((dadosAtuais) => ({
-      ...dadosAtuais,
+  function atualizarCampo(campo: keyof FormularioParceiro, valor: string) {
+    setFormulario((estadoAtual) => ({
+      ...estadoAtual,
       [campo]: valor,
     }));
   }
 
-  function limparFormulario() {
-    setFormulario({
-      nome: "",
-      tipo: "Ponto turístico",
-      cidade: "",
-      endereco: "",
-      descricao: "",
-      horario: "",
-      preco: "",
-      contato: "",
-      acessibilidade: "Média",
-    });
-  }
-
-  function enviarFormulario(event: React.FormEvent<HTMLFormElement>) {
+  async function enviarSolicitacao(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const novaSolicitacao: SolicitacaoParceiro = {
-      id: Date.now(),
-      ...formulario,
-      status: "Aguardando aprovação",
-      criadoEm: new Date().toLocaleDateString("pt-BR"),
-    };
+    try {
+      setEnviando(true);
+      setMensagem("");
+      setErro("");
 
-    const solicitacoesSalvas = localStorage.getItem("roteirize_solicitacoes");
+      const resposta = await fetch("/api/solicitacoes-parceiro", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formulario),
+      });
 
-    const solicitacoes: SolicitacaoParceiro[] = solicitacoesSalvas
-      ? JSON.parse(solicitacoesSalvas)
-      : [];
+      const dados = await resposta.json();
 
-    const novasSolicitacoes = [novaSolicitacao, ...solicitacoes];
+      if (!resposta.ok) {
+        throw new Error(dados.error ?? "Erro ao enviar solicitação.");
+      }
 
-    localStorage.setItem(
-      "roteirize_solicitacoes",
-      JSON.stringify(novasSolicitacoes)
-    );
+      setFormulario(formularioInicial);
+      setMensagem(
+        "Solicitação enviada com sucesso! Agora ela ficará aguardando análise no painel do administrador.",
+      );
+    } catch (error) {
+      console.error(error);
 
-    setEnviado(true);
-    limparFormulario();
+      if (error instanceof Error) {
+        setErro(error.message);
+      } else {
+        setErro("Não foi possível enviar a solicitação.");
+      }
+    } finally {
+      setEnviando(false);
+    }
   }
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-[#F5F7F8] text-[#0F2433]">
       <Header />
 
-      <section className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-6 py-10">
-          <p className="font-heading font-black text-[#10B981]">
-            Área do parceiro local
-          </p>
+      <section className="soft-grid border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-5 py-12">
+          <div className="max-w-3xl">
+            <span className="font-heading rounded-full bg-[#10B981]/10 px-4 py-2 text-sm font-bold text-[#0F4C5C]">
+              Área do parceiro local
+            </span>
 
-          <h1 className="mt-2 max-w-4xl text-4xl font-black tracking-tight text-[#0F2433] md:text-5xl">
-            Cadastre experiências, serviços e lugares para compor roteiros pela
-            Paraíba.
-          </h1>
+            <h1 className="font-heading mt-6 text-4xl font-black leading-tight text-[#0F2433] md:text-6xl">
+              Cadastre seu serviço turístico para análise.
+            </h1>
 
-          <p className="mt-4 max-w-3xl leading-8 text-[#45617A]">
-            Esta área permite que pequenos negócios, guias, restaurantes,
-            artesãos e iniciativas culturais enviem informações para análise da
-            equipe da plataforma.
-          </p>
+            <p className="mt-5 text-lg leading-8 text-[#45617A]">
+              Guias, restaurantes, artesãos, experiências locais e pequenos
+              empreendedores podem solicitar participação no Roteirize PB. A
+              solicitação será enviada para o banco e analisada no painel
+              administrativo.
+            </p>
+          </div>
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-7xl gap-6 px-6 py-10 lg:grid-cols-[1fr_380px]">
+      <section className="mx-auto grid max-w-7xl gap-8 px-5 py-10 lg:grid-cols-[1fr_360px]">
         <form
-          onSubmit={enviarFormulario}
-          className="rounded-3xl bg-white p-6 card-shadow"
+          onSubmit={enviarSolicitacao}
+          className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6 md:p-8"
         >
-          <h2 className="text-2xl font-black text-[#0F2433]">
-            Solicitar cadastro
-          </h2>
-
-          <p className="mt-2 text-sm leading-6 text-[#45617A]">
-            Preencha os dados abaixo. No sistema final, esse cadastro ficaria com
-            status “aguardando aprovação” até ser validado por um administrador.
-          </p>
-
-          <div className="mt-6 grid gap-5 md:grid-cols-2">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
-              <label className="text-sm font-black text-[#0F2433]">
-                Nome do local ou serviço
-              </label>
+              <h2 className="font-heading text-2xl font-black text-[#0F2433]">
+                Dados da solicitação
+              </h2>
 
+              <p className="mt-2 text-sm leading-6 text-[#45617A]">
+                Preencha as informações principais. Depois, o administrador
+                poderá aprovar ou rejeitar o cadastro.
+              </p>
+            </div>
+
+            <span className="font-heading rounded-full bg-[#10B981]/10 px-4 py-2 text-xs font-bold text-[#0F4C5C]">
+              Neon + Prisma
+            </span>
+          </div>
+
+          {mensagem && (
+            <div className="mt-6 rounded-2xl border border-[#10B981]/20 bg-[#10B981]/10 p-4 text-sm font-semibold text-[#0F4C5C]">
+              {mensagem}
+            </div>
+          )}
+
+          {erro && (
+            <div className="mt-6 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-600">
+              {erro}
+            </div>
+          )}
+
+          <div className="mt-8 grid gap-5 md:grid-cols-2">
+            <div>
+              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+                Nome do local ou serviço *
+              </label>
               <input
                 value={formulario.nome}
                 onChange={(event) => atualizarCampo("nome", event.target.value)}
-                placeholder="Ex: Restaurante Regional da Orla"
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#10B981]"
-                required
+                placeholder="Ex: Restaurante Sabor Paraibano"
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#10B981]"
               />
             </div>
 
             <div>
-              <label className="text-sm font-black text-[#0F2433]">
-                Tipo de cadastro
+              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+                Tipo *
               </label>
-
               <select
                 value={formulario.tipo}
                 onChange={(event) => atualizarCampo("tipo", event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#10B981]"
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#10B981]"
               >
                 {tipos.map((tipo) => (
-                  <option key={tipo}>{tipo}</option>
+                  <option key={tipo} value={tipo}>
+                    {tipo}
+                  </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="text-sm font-black text-[#0F2433]">
-                Cidade
+              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+                Cidade *
               </label>
-
-              <input
+              <select
                 value={formulario.cidade}
                 onChange={(event) =>
                   atualizarCampo("cidade", event.target.value)
                 }
-                placeholder="Ex: João Pessoa"
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#10B981]"
-                required
-              />
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#10B981]"
+              >
+                {cidades.map((cidade) => (
+                  <option key={cidade} value={cidade}>
+                    {cidade}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
-              <label className="text-sm font-black text-[#0F2433]">
-                Endereço
+              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+                Endereço *
               </label>
-
               <input
                 value={formulario.endereco}
                 onChange={(event) =>
                   atualizarCampo("endereco", event.target.value)
                 }
-                placeholder="Rua, bairro, referência..."
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#10B981]"
-                required
+                placeholder="Rua, bairro ou referência"
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#10B981]"
               />
             </div>
 
             <div>
-              <label className="text-sm font-black text-[#0F2433]">
-                Horário de funcionamento ou melhor horário
+              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+                Horário de funcionamento
               </label>
-
               <input
                 value={formulario.horario}
                 onChange={(event) =>
                   atualizarCampo("horario", event.target.value)
                 }
-                placeholder="Ex: 08h às 17h"
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#10B981]"
+                placeholder="Ex: 09h às 17h"
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#10B981]"
               />
             </div>
 
             <div>
-              <label className="text-sm font-black text-[#0F2433]">
+              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
                 Faixa de preço
               </label>
-
               <input
                 value={formulario.preco}
-                onChange={(event) => atualizarCampo("preco", event.target.value)}
-                placeholder="Ex: Gratuito, R$ 30 a R$ 60"
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#10B981]"
+                onChange={(event) =>
+                  atualizarCampo("preco", event.target.value)
+                }
+                placeholder="Ex: R$ 30 a R$ 80"
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#10B981]"
               />
             </div>
 
             <div>
-              <label className="text-sm font-black text-[#0F2433]">
+              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
                 Contato
               </label>
-
               <input
                 value={formulario.contato}
                 onChange={(event) =>
                   atualizarCampo("contato", event.target.value)
                 }
-                placeholder="WhatsApp, Instagram ou e-mail"
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#10B981]"
+                placeholder="Telefone, WhatsApp, Instagram ou e-mail"
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#10B981]"
               />
             </div>
 
             <div>
-              <label className="text-sm font-black text-[#0F2433]">
+              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
                 Acessibilidade
               </label>
-
               <select
                 value={formulario.acessibilidade}
                 onChange={(event) =>
                   atualizarCampo("acessibilidade", event.target.value)
                 }
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#10B981]"
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#10B981]"
               >
-                <option>Baixa</option>
-                <option>Média</option>
-                <option>Alta</option>
+                {niveisAcessibilidade.map((nivel) => (
+                  <option key={nivel} value={nivel}>
+                    {nivel}
+                  </option>
+                ))}
               </select>
             </div>
 
             <div className="md:col-span-2">
-              <label className="text-sm font-black text-[#0F2433]">
-                Descrição da experiência
+              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+                Descrição *
               </label>
-
               <textarea
                 value={formulario.descricao}
                 onChange={(event) =>
                   atualizarCampo("descricao", event.target.value)
                 }
-                placeholder="Descreva o local, serviço ou experiência oferecida..."
+                placeholder="Descreva a experiência, o diferencial do serviço e por que ele deveria aparecer para turistas."
                 rows={5}
-                className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#10B981]"
-                required
+                className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#10B981]"
               />
             </div>
           </div>
 
-          <button className="mt-6 rounded-2xl bg-[#10B981] px-6 py-4 font-black text-white transition hover:bg-[#0F4C5C]">
-            Enviar para análise
-          </button>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <button
+              type="submit"
+              disabled={enviando}
+              className="font-heading rounded-full bg-[#0F4C5C] px-7 py-4 text-sm font-black text-white transition hover:bg-[#10B981] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {enviando ? "Enviando..." : "Enviar para análise"}
+            </button>
+          </div>
         </form>
 
-        <aside className="h-fit rounded-3xl bg-[#0F2433] p-6 text-white">
-          <h2 className="text-2xl font-black">Como funciona?</h2>
+        <aside className="space-y-5">
+          <div className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6">
+            <h2 className="font-heading text-2xl font-black text-[#0F2433]">
+              Como funciona?
+            </h2>
 
-          <div className="mt-6 space-y-4">
-            <div className="rounded-3xl bg-white/10 p-4">
-              <p className="font-black">1. O parceiro envia o cadastro</p>
-              <p className="mt-2 text-sm leading-6 text-white/70">
-                O local, serviço ou experiência é enviado com dados básicos,
-                endereço, descrição e contato.
+            <div className="mt-5 space-y-4 text-sm leading-6 text-[#45617A]">
+              <p>
+                <strong className="text-[#0F4C5C]">1.</strong> O parceiro envia
+                a solicitação.
               </p>
-            </div>
 
-            <div className="rounded-3xl bg-white/10 p-4">
-              <p className="font-black">2. A equipe analisa</p>
-              <p className="mt-2 text-sm leading-6 text-white/70">
-                Um administrador verifica se as informações fazem sentido e se
-                estão alinhadas à proposta turística.
+              <p>
+                <strong className="text-[#0F4C5C]">2.</strong> O administrador
+                avalia as informações.
               </p>
-            </div>
 
-            <div className="rounded-3xl bg-white/10 p-4">
-              <p className="font-black">3. O local entra nos roteiros</p>
-              <p className="mt-2 text-sm leading-6 text-white/70">
-                Após aprovado, o cadastro pode aparecer em buscas, filtros e
-                roteiros sugeridos.
+              <p>
+                <strong className="text-[#0F4C5C]">3.</strong> Quando aprovado,
+                o local poderá aparecer para turistas na plataforma.
               </p>
             </div>
           </div>
 
-          {enviado && (
-            <div className="mt-6 rounded-3xl bg-[#10B981] p-5 text-white">
-              <p className="text-lg font-black">Solicitação enviada!</p>
+          <div className="rounded-[2rem] bg-[#0F4C5C] p-6 text-white">
+            <h3 className="font-heading text-xl font-black">
+              Marketplace turístico
+            </h3>
 
-              <p className="mt-2 text-sm leading-6 text-white/90">
-                Seu cadastro foi salvo nesta demonstração e está disponível no
-                painel do administrador.
-              </p>
-
-              <Link
-                href="/admin"
-                className="mt-4 block rounded-2xl bg-white px-4 py-3 text-center font-black text-[#0F4C5C]"
-              >
-                Ver no painel admin
-              </Link>
-            </div>
-          )}
+            <p className="mt-3 text-sm leading-6 text-white/85">
+              Essa área representa o mini-ecossistema para pequenos
+              empreendedores locais, uma das funcionalidades solicitadas no
+              projeto.
+            </p>
+          </div>
         </aside>
       </section>
     </main>

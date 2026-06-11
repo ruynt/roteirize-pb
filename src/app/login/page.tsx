@@ -1,94 +1,116 @@
+"use client";
+
 import Header from "@/components/Header";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+const CHAVE_USUARIO = "roteirize_usuario";
 
 const perfis = [
   {
-    nome: "Turista",
+    perfil: "TOURIST",
+    perfilLabel: "Turista",
+    titulo: "Entrar como turista",
     descricao:
-      "Crie roteiros personalizados, explore pontos turísticos e salve experiências para sua viagem.",
-    icone: "🧳",
-    href: "/criar-roteiro",
-    botao: "Entrar como turista",
+      "Explore lugares, selecione experiências e gere roteiros personalizados.",
+    destino: "/criar-roteiro",
+    emoji: "🧭",
   },
   {
-    nome: "Parceiro Local",
+    perfil: "PARTNER",
+    perfilLabel: "Parceiro local",
+    titulo: "Entrar como parceiro",
     descricao:
-      "Cadastre restaurantes, serviços, passeios, experiências culturais e pontos de interesse.",
-    icone: "🏪",
-    href: "/parceiro",
-    botao: "Entrar como parceiro",
+      "Cadastre serviços turísticos, experiências locais, restaurantes ou guias para análise.",
+    destino: "/parceiro",
+    emoji: "🤝",
   },
   {
-    nome: "Administrador",
+    perfil: "ADMIN",
+    perfilLabel: "Administrador",
+    titulo: "Entrar como administrador",
     descricao:
-      "Analise solicitações de parceiros, aprove cadastros e acompanhe os dados da plataforma.",
-    icone: "🛠️",
-    href: "/admin",
-    botao: "Entrar como admin",
+      "Acesse o painel para aprovar, rejeitar e gerenciar solicitações de parceiros.",
+    destino: "/admin",
+    emoji: "🛡️",
   },
-];
+] as const;
 
 export default function LoginPage() {
+  const router = useRouter();
+
+  function entrarComo(perfilSelecionado: (typeof perfis)[number]) {
+    localStorage.setItem(
+      CHAVE_USUARIO,
+      JSON.stringify({
+        perfil: perfilSelecionado.perfil,
+        perfilLabel: perfilSelecionado.perfilLabel,
+        criadoEm: new Date().toISOString(),
+      }),
+    );
+
+    router.push(perfilSelecionado.destino);
+  }
+
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-[#F5F7F8] text-[#0F2433]">
       <Header />
 
-      <section className="hero-gradient text-white">
-        <div className="mx-auto max-w-7xl px-6 py-20">
-          <p className="mb-4 inline-flex rounded-full bg-white/15 px-4 py-2 text-sm font-bold backdrop-blur">
-            Acesso à plataforma
-          </p>
+      <section className="soft-grid border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-5 py-12">
+          <div className="max-w-3xl">
+            <span className="font-heading rounded-full bg-[#10B981]/10 px-4 py-2 text-sm font-bold text-[#0F4C5C]">
+              Login simulado
+            </span>
 
-          <h1 className="max-w-4xl text-5xl font-black leading-tight tracking-tight md:text-6xl">
-            Escolha como deseja acessar o Roteirize PB.
-          </h1>
+            <h1 className="font-heading mt-6 text-4xl font-black leading-tight text-[#0F2433] md:text-6xl">
+              Escolha um perfil para acessar a plataforma.
+            </h1>
 
-          <p className="mt-6 max-w-3xl text-lg leading-8 text-white/90">
-            Nesta primeira versão, o login é uma simulação para demonstrar os
-            diferentes perfis de usuário do sistema: turista, parceiro local e
-            administrador.
-          </p>
+            <p className="mt-5 text-lg leading-8 text-[#45617A]">
+              Para fins de demonstração acadêmica, o Roteirize PB usa uma
+              autenticação simulada. Cada perfil libera um fluxo diferente da
+              aplicação.
+            </p>
+          </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 py-14">
+      <section className="mx-auto max-w-7xl px-5 py-10">
         <div className="grid gap-6 md:grid-cols-3">
           {perfis.map((perfil) => (
-            <article
-              key={perfil.nome}
-              className="card-shadow flex flex-col rounded-[2rem] bg-white p-6 transition hover:-translate-y-1"
+            <button
+              key={perfil.perfil}
+              onClick={() => entrarComo(perfil)}
+              className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-7 text-left transition hover:-translate-y-1 hover:border-[#10B981]"
             >
               <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-[#10B981]/10 text-3xl">
-                {perfil.icone}
+                {perfil.emoji}
               </div>
 
-              <h2 className="mt-6 text-2xl font-black text-[#0F2433]">
-                {perfil.nome}
+              <h2 className="font-heading mt-6 text-2xl font-black text-[#0F2433]">
+                {perfil.titulo}
               </h2>
 
-              <p className="mt-3 flex-1 leading-7 text-[#45617A]">
+              <p className="mt-3 text-sm leading-6 text-[#45617A]">
                 {perfil.descricao}
               </p>
 
-              <Link
-                href={perfil.href}
-                className="mt-6 rounded-2xl bg-[#10B981] px-5 py-4 text-center font-black text-white transition hover:bg-[#0F4C5C]"
-              >
-                {perfil.botao}
-              </Link>
-            </article>
+              <span className="font-heading mt-6 inline-flex rounded-full bg-[#0F4C5C] px-5 py-3 text-sm font-black text-white">
+                Acessar como {perfil.perfilLabel}
+              </span>
+            </button>
           ))}
         </div>
 
-        <div className="mt-10 rounded-[2rem] bg-white p-6 card-shadow">
-          <h2 className="text-2xl font-black text-[#0F2433]">
+        <div className="mt-8 rounded-[2rem] border border-[#F2C98A] bg-[#F2C98A]/25 p-6">
+          <h2 className="font-heading text-xl font-black text-[#0F4C5C]">
             Observação para apresentação
           </h2>
 
-          <p className="mt-3 leading-8 text-[#45617A]">
-            Em uma versão futura, esta tela teria autenticação real com e-mail e
-            senha. Por enquanto, ela funciona como uma seleção de perfil para
-            demonstrar os fluxos principais do sistema.
+          <p className="mt-3 text-sm leading-6 text-[#45617A]">
+            Esta tela representa o controle de perfis da aplicação. Em uma
+            versão de produção, seria substituída por autenticação real com
+            e-mail, senha, sessões protegidas e permissões no servidor.
           </p>
         </div>
       </section>

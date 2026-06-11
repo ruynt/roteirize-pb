@@ -1,813 +1,919 @@
 "use client";
 
 import Header from "@/components/Header";
+import MapaRoteiro from "@/components/MapaRoteiro";
 import Link from "next/link";
-import { Categoria, Custo, Lugar, lugares } from "@/data/lugares";
 import { useEffect, useMemo, useState } from "react";
 
 const CHAVE_LUGARES_SELECIONADOS = "roteirize_lugares_selecionados";
 const CHAVE_ROTEIROS_SALVOS = "roteirize_roteiros_salvos";
 
-const interessesDisponiveis: Categoria[] = [
-  "Praia",
-  "Cultura",
-  "Gastronomia",
-  "Natureza",
-  "Experiência",
-];
-
-const opcoesOrcamento: Array<Custo | "Livre"> = [
-  "Gratuito",
-  "Econômico",
-  "Médio",
-  "Alto",
-  "Livre",
-];
-
-const prioridadeManha: Record<Categoria, number> = {
-  Cultura: 1,
-  Praia: 2,
-  Natureza: 3,
-  Experiência: 4,
-  Gastronomia: 5,
+type Lugar = {
+  id: string;
+  nome: string;
+  cidade: string;
+  categoria: string;
+  descricao: string;
+  endereco: string;
+  custo: string;
+  precoEstimado: string;
+  nota: number;
+  tempoSugeridoMin: number;
+  horarioIdeal: string;
+  acessibilidade: string;
+  tags: string[];
+  distanciaCentroKm: number;
+  imagemClasse: string;
 };
 
-const prioridadeTarde: Record<Categoria, number> = {
-  Gastronomia: 1,
-  Experiência: 2,
-  Natureza: 3,
-  Praia: 4,
-  Cultura: 5,
-};
-
-type ItemRoteiroGerado = {
+type ParadaRoteiro = {
   lugar: Lugar;
   chegada: string;
   saida: string;
   deslocamentoAntes: number;
+  avisos: string[];
 };
 
-type RoteiroSalvo = {
-  id: number;
-  titulo: string;
-  criadoEm: string;
-  cidadeBase: string;
-  tempoDisponivel: number;
-  horarioInicio: string;
-  transporte: string;
-  orcamento: Custo | "Livre";
-  ritmo: string;
-  incluirAlmoco: boolean;
-  interesses: Categoria[];
-  resumo: {
-    tempoTotalLocais: number;
-    tempoTotalDeslocamento: number;
-    custo: {
-      minimo: number;
-      maximo: number;
-    };
-    nivel: string;
-  };
-  paradas: Array<{
-    lugarId: number;
-    nome: string;
-    cidade: string;
-    categoria: Categoria;
-    chegada: string;
-    saida: string;
-    deslocamentoAntes: number;
-    tempoSugeridoMin: number;
-    precoEstimado: string;
-    nota: number;
-  }>;
+type JanelaHorario = {
+  inicio: number;
+  fim: number;
 };
 
-function formatarHora(minutosTotais: number) {
-  const horas = Math.floor(minutosTotais / 60);
-  const minutos = minutosTotais % 60;
+const opcoesTransporte = ["Carro", "Uber/99", "Transporte público", "A pé"];
+const opcoesOrcamento = ["Gratuito", "Econômico", "Médio", "Alto"];
+const opcoesRitmo = ["Leve", "Moderado", "Intenso"];
 
-  return `${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`;
+function arredondarParaMultiplo(valor: number, multiplo = 5) {
+  return Math.round(valor / multiplo) * multiplo;
 }
 
-function horaParaMinutos(hora: string) {
-  const [horas, minutos] = hora.split(":").map(Number);
+function converterHorarioParaMinutos(horario: string) {
+  const [horas, minutos] = horario.split(":").map(Number);
   return horas * 60 + minutos;
 }
 
-function custoPermitido(lugar: Lugar, orcamento: Custo | "Livre") {
-  if (orcamento === "Livre") return true;
+function converterMinutosParaHorario(totalMinutos: number) {
+  const minutosArredondados = arredondarParaMultiplo(totalMinutos, 5);
+  const horas = Math.floor(minutosArredondados / 60) % 24;
+  const minutos = minutosArredondados % 60;
 
-  const ordem: Record<Custo, number> = {
+  return `${String(horas).padStart(2, "0")}:${String(minutos).padStart(
+    2,
+    "0",
+  )}`;
+}
+
+function obterJanelaHorarioIdeal(horarioIdeal: string): JanelaHorario | null {
+  const texto = horarioIdeal.toLowerCase().trim();
+
+  const resultado = texto.match(
+    /(\d{1,2})h(?:(\d{2}))?\s*(?:às|as|a|-)\s*(\d{1,2})h(?:(\d{2}))?/i,
+  );
+
+  if (!resultado) {
+    return null;
+  }
+
+  const horaInicio = Number(resultado[1]);
+  const minutoInicio = resultado[2] ? Number(resultado[2]) : 0;
+  const horaFim = Number(resultado[3]);
+  const minutoFim = resultado[4] ? Number(resultado[4]) : 0;
+
+  const inicio = horaInicio * 60 + minutoInicio;
+  let fim = horaFim * 60 + minutoFim;
+
+  if (fim <= inicio) {
+    fim += 24 * 60;
+  }
+
+  return {
+    inicio,
+    fim,
+  };
+}
+
+function obterAvisosHorarioIdeal(
+  lugar: Lugar,
+  chegadaMinutos: number,
+  saidaMinutos: number,
+) {
+  const janela = obterJanelaHorarioIdeal(lugar.horarioIdeal);
+
+  if (!janela) {
+    return [];
+  }
+
+  const avisos: string[] = [];
+
+  if (chegadaMinutos < janela.inicio) {
+    avisos.push(
+      `Chegada prevista antes do horário ideal do local (${lugar.horarioIdeal}).`,
+    );
+  }
+
+  if (chegadaMinutos > janela.fim) {
+    avisos.push(
+      `Chegada prevista depois do horário ideal do local (${lugar.horarioIdeal}).`,
+    );
+  } else if (saidaMinutos > janela.fim) {
+    avisos.push(
+      `A visita termina após o horário ideal do local (${lugar.horarioIdeal}).`,
+    );
+  }
+
+  return avisos;
+}
+
+function calcularDeslocamento(lugar: Lugar, transporte: string, ritmo: string) {
+  const basePorDistancia = Math.max(8, Math.round(lugar.distanciaCentroKm * 2));
+
+  const fatorTransporte: Record<string, number> = {
+    Carro: 0.8,
+    "Uber/99": 0.9,
+    "Transporte público": 1.4,
+    "A pé": 2,
+  };
+
+  const fatorRitmo: Record<string, number> = {
+    Leve: 1.2,
+    Moderado: 1,
+    Intenso: 0.85,
+  };
+
+  const deslocamento = Math.round(
+    basePorDistancia *
+      (fatorTransporte[transporte] ?? 1) *
+      (fatorRitmo[ritmo] ?? 1),
+  );
+
+  return Math.max(5, arredondarParaMultiplo(deslocamento, 5));
+}
+
+function custoCabeNoOrcamento(custo: string, orcamento: string) {
+  const pesos: Record<string, number> = {
     Gratuito: 1,
     Econômico: 2,
     Médio: 3,
     Alto: 4,
   };
 
-  return ordem[lugar.custo] <= ordem[orcamento];
+  return (pesos[custo] ?? 4) <= (pesos[orcamento] ?? 4);
 }
 
-function estimarCusto(lugar: Lugar) {
-  if (lugar.custo === "Gratuito") return { minimo: 0, maximo: 20 };
-  if (lugar.custo === "Econômico") return { minimo: 10, maximo: 80 };
-  if (lugar.custo === "Médio") return { minimo: 50, maximo: 120 };
+function estimarPrecoNumerico(precoEstimado: string) {
+  const valores = precoEstimado.match(/\d+/g)?.map(Number) ?? [];
 
-  return { minimo: 100, maximo: 200 };
+  if (valores.length === 0) {
+    return 0;
+  }
+
+  const soma = valores.reduce((total, valor) => total + valor, 0);
+  return Math.round(soma / valores.length);
 }
 
-function calcularDeslocamento(transporte: string, ritmo: string) {
-  let deslocamento = 20;
+function classificarNivel(totalMinutos: number) {
+  if (totalMinutos <= 240) {
+    return "Roteiro leve";
+  }
 
-  if (transporte === "A pé") deslocamento = 30;
-  if (transporte === "Ônibus") deslocamento = 35;
-  if (transporte === "Uber") deslocamento = 20;
-  if (transporte === "Carro") deslocamento = 18;
+  if (totalMinutos <= 420) {
+    return "Roteiro moderado";
+  }
 
-  if (ritmo === "Leve") deslocamento += 10;
-  if (ritmo === "Intenso") deslocamento -= 5;
-
-  return Math.max(deslocamento, 10);
-}
-
-function calcularLimiteDeParadas(ritmo: string) {
-  if (ritmo === "Leve") return 4;
-  if (ritmo === "Moderado") return 5;
-
-  return 7;
+  return "Roteiro intenso";
 }
 
 export default function CriarRoteiroPage() {
-  const [cidadeBase, setCidadeBase] = useState("João Pessoa e região");
-  const [tempoDisponivel, setTempoDisponivel] = useState(8);
+  const [lugares, setLugares] = useState<Lugar[]>([]);
+  const [lugaresSelecionados, setLugaresSelecionados] = useState<string[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState("");
+
+  const [cidadeBase, setCidadeBase] = useState("João Pessoa");
+  const [tempoDisponivel, setTempoDisponivel] = useState(5);
   const [horarioInicio, setHorarioInicio] = useState("08:00");
   const [transporte, setTransporte] = useState("Carro");
-  const [orcamento, setOrcamento] = useState<Custo | "Livre">("Médio");
+  const [orcamento, setOrcamento] = useState("Médio");
   const [ritmo, setRitmo] = useState("Moderado");
   const [incluirAlmoco, setIncluirAlmoco] = useState(true);
-  const [usarSelecionados, setUsarSelecionados] = useState(true);
-  const [lugaresSelecionadosIds, setLugaresSelecionadosIds] = useState<number[]>(
-    []
-  );
-  const [roteiroSalvo, setRoteiroSalvo] = useState(false);
+  const [priorizarSelecionados, setPriorizarSelecionados] = useState(true);
+  const [interesses, setInteresses] = useState<string[]>(["Praia", "Cultura"]);
 
-  const [interesses, setInteresses] = useState<Categoria[]>([
-    "Praia",
-    "Cultura",
-    "Gastronomia",
-  ]);
+  const [roteiro, setRoteiro] = useState<ParadaRoteiro[]>([]);
+  const [mensagem, setMensagem] = useState("");
 
   useEffect(() => {
-    const lugaresSalvos = localStorage.getItem(CHAVE_LUGARES_SELECIONADOS);
+    async function buscarLugares() {
+      try {
+        setCarregando(true);
+        setErro("");
 
-    if (lugaresSalvos) {
-      const idsSalvos = JSON.parse(lugaresSalvos);
+        const resposta = await fetch("/api/lugares", {
+          cache: "no-store",
+        });
 
-      if (Array.isArray(idsSalvos)) {
-        setLugaresSelecionadosIds(idsSalvos);
+        if (!resposta.ok) {
+          throw new Error("Erro ao buscar lugares.");
+        }
+
+        const dados = (await resposta.json()) as Lugar[];
+        setLugares(dados);
+      } catch (error) {
+        console.error(error);
+        setErro("Não foi possível carregar os lugares do banco.");
+      } finally {
+        setCarregando(false);
+      }
+    }
+
+    buscarLugares();
+  }, []);
+
+  useEffect(() => {
+    const selecionadosSalvos = localStorage.getItem(CHAVE_LUGARES_SELECIONADOS);
+
+    if (selecionadosSalvos) {
+      try {
+        const selecionados = JSON.parse(selecionadosSalvos) as unknown[];
+        setLugaresSelecionados(selecionados.map(String));
+      } catch {
+        localStorage.removeItem(CHAVE_LUGARES_SELECIONADOS);
       }
     }
   }, []);
-
-  const lugaresSelecionados = useMemo(() => {
-    return lugares.filter((lugar) => lugaresSelecionadosIds.includes(lugar.id));
-  }, [lugaresSelecionadosIds]);
 
   const cidades = useMemo(() => {
     return [
-      "João Pessoa e região",
       "Todas",
       ...Array.from(new Set(lugares.map((lugar) => lugar.cidade))),
     ];
-  }, []);
+  }, [lugares]);
 
-  function limparSelecao() {
-    localStorage.removeItem(CHAVE_LUGARES_SELECIONADOS);
-    setLugaresSelecionadosIds([]);
-    setUsarSelecionados(false);
-  }
+  const categorias = useMemo(() => {
+    return Array.from(new Set(lugares.map((lugar) => lugar.categoria)));
+  }, [lugares]);
 
-  const roteiro = useMemo<ItemRoteiroGerado[]>(() => {
-    const tempoMaximoMin = tempoDisponivel * 60;
-    const deslocamentoMedio = calcularDeslocamento(transporte, ritmo);
-    const limiteParadas = calcularLimiteDeParadas(ritmo);
-
-    const usarBaseSelecionada =
-      usarSelecionados && lugaresSelecionadosIds.length > 0;
-
-    const baseDeLugares = usarBaseSelecionada ? lugaresSelecionados : lugares;
-
-    const dentroDaCidade = (lugar: Lugar) => {
-      if (cidadeBase === "Todas") return true;
-
-      if (cidadeBase === "João Pessoa e região") {
-        return lugar.distanciaCentroKm <= 40;
-      }
-
-      return lugar.cidade === cidadeBase;
-    };
-
-    const candidatos = baseDeLugares
-      .filter(dentroDaCidade)
-      .filter((lugar) => custoPermitido(lugar, orcamento))
-      .filter((lugar) => {
-        if (interesses.length === 0) return true;
-        if (incluirAlmoco && lugar.categoria === "Gastronomia") return true;
-
-        return interesses.includes(lugar.categoria);
-      });
-
-    let restaurante = incluirAlmoco
-      ? candidatos
-          .filter((lugar) => lugar.categoria === "Gastronomia")
-          .sort((a, b) => b.nota - a.nota)[0]
-      : undefined;
-
-    if (!restaurante && incluirAlmoco) {
-      restaurante = lugares
-        .filter(dentroDaCidade)
-        .filter((lugar) => custoPermitido(lugar, orcamento))
-        .filter((lugar) => lugar.categoria === "Gastronomia")
-        .sort((a, b) => b.nota - a.nota)[0];
-    }
-
-    const candidatosSemRestaurante = candidatos.filter(
-      (lugar) => lugar.id !== restaurante?.id
-    );
-
-    const manha = candidatosSemRestaurante
-      .filter((lugar) => lugar.categoria !== "Gastronomia")
-      .sort((a, b) => {
-        const prioridade =
-          prioridadeManha[a.categoria] - prioridadeManha[b.categoria];
-
-        if (prioridade !== 0) return prioridade;
-
-        return b.nota - a.nota;
-      });
-
-    const tarde = candidatosSemRestaurante
-      .filter((lugar) => lugar.categoria !== "Gastronomia")
-      .sort((a, b) => {
-        const prioridade =
-          prioridadeTarde[a.categoria] - prioridadeTarde[b.categoria];
-
-        if (prioridade !== 0) return prioridade;
-
-        return b.nota - a.nota;
-      });
-
-    const ordemSugerida: Lugar[] = [];
-
-    for (const lugar of manha) {
-      if (!ordemSugerida.some((item) => item.id === lugar.id)) {
-        ordemSugerida.push(lugar);
-      }
-
-      if (ordemSugerida.length >= 2) break;
-    }
-
-    if (restaurante) {
-      ordemSugerida.push(restaurante);
-    }
-
-    for (const lugar of tarde) {
-      if (!ordemSugerida.some((item) => item.id === lugar.id)) {
-        ordemSugerida.push(lugar);
-      }
-
-      if (ordemSugerida.length >= limiteParadas) break;
-    }
-
-    let tempoUsado = 0;
-    let horarioAtual = horaParaMinutos(horarioInicio);
-
-    const selecionados: ItemRoteiroGerado[] = [];
-
-    for (const lugar of ordemSugerida) {
-      const deslocamentoAntes =
-        selecionados.length === 0 ? 0 : deslocamentoMedio;
-
-      const tempoNecessario = deslocamentoAntes + lugar.tempoSugeridoMin;
-
-      if (tempoUsado + tempoNecessario <= tempoMaximoMin) {
-        horarioAtual += deslocamentoAntes;
-
-        const chegada = formatarHora(horarioAtual);
-
-        horarioAtual += lugar.tempoSugeridoMin;
-
-        const saida = formatarHora(horarioAtual);
-
-        selecionados.push({
-          lugar,
-          chegada,
-          saida,
-          deslocamentoAntes,
-        });
-
-        tempoUsado += tempoNecessario;
-      }
-    }
-
-    return selecionados;
-  }, [
-    cidadeBase,
-    tempoDisponivel,
-    horarioInicio,
-    transporte,
-    orcamento,
-    ritmo,
-    incluirAlmoco,
-    interesses,
-    usarSelecionados,
-    lugaresSelecionados,
-    lugaresSelecionadosIds.length,
-  ]);
+  const lugaresSelecionadosDetalhados = useMemo(() => {
+    return lugares.filter((lugar) => lugaresSelecionados.includes(lugar.id));
+  }, [lugares, lugaresSelecionados]);
 
   const resumo = useMemo(() => {
-    const tempoTotalLocais = roteiro.reduce(
-      (total, item) => total + item.lugar.tempoSugeridoMin,
-      0
+    const totalVisitas = roteiro.reduce(
+      (total, parada) => total + parada.lugar.tempoSugeridoMin,
+      0,
     );
 
-    const tempoTotalDeslocamento = roteiro.reduce(
-      (total, item) => total + item.deslocamentoAntes,
-      0
+    const totalDeslocamento = roteiro.reduce(
+      (total, parada) => total + parada.deslocamentoAntes,
+      0,
     );
 
-    const custo = roteiro.reduce(
-      (total, item) => {
-        const custoLugar = estimarCusto(item.lugar);
-
-        return {
-          minimo: total.minimo + custoLugar.minimo,
-          maximo: total.maximo + custoLugar.maximo,
-        };
-      },
-      { minimo: 0, maximo: 0 }
+    const custoEstimado = roteiro.reduce(
+      (total, parada) =>
+        total + estimarPrecoNumerico(parada.lugar.precoEstimado),
+      0,
     );
 
     return {
-      tempoTotalLocais,
-      tempoTotalDeslocamento,
-      custo,
-      nivel:
-        roteiro.length >= 6
-          ? "Intenso"
-          : roteiro.length >= 4
-            ? "Moderado"
-            : "Leve",
+      totalVisitas,
+      totalDeslocamento,
+      totalGeral: totalVisitas + totalDeslocamento,
+      custoEstimado,
+      nivel: classificarNivel(totalVisitas + totalDeslocamento),
     };
   }, [roteiro]);
 
-  function alternarInteresse(interesse: Categoria) {
-    setInteresses((interessesAtuais) => {
-      if (interessesAtuais.includes(interesse)) {
-        return interessesAtuais.filter((item) => item !== interesse);
+  function alternarInteresse(categoria: string) {
+    const jaSelecionado = interesses.includes(categoria);
+
+    if (jaSelecionado) {
+      setInteresses(interesses.filter((item) => item !== categoria));
+      return;
+    }
+
+    setInteresses([...interesses, categoria]);
+  }
+
+  function calcularPontuacao(lugar: Lugar) {
+    let pontuacao = lugar.nota * 10;
+
+    if (interesses.includes(lugar.categoria)) {
+      pontuacao += 25;
+    }
+
+    if (cidadeBase === "Todas" || lugar.cidade === cidadeBase) {
+      pontuacao += 15;
+    }
+
+    if (custoCabeNoOrcamento(lugar.custo, orcamento)) {
+      pontuacao += 12;
+    } else {
+      pontuacao -= 20;
+    }
+
+    if (lugaresSelecionados.includes(lugar.id)) {
+      pontuacao += 30;
+    }
+
+    pontuacao -= Math.min(lugar.distanciaCentroKm / 2, 20);
+
+    return pontuacao;
+  }
+
+  function gerarRoteiro() {
+    setMensagem("");
+
+    if (lugares.length === 0) {
+      setMensagem("Nenhum lugar disponível para gerar o roteiro.");
+      return;
+    }
+
+    const tempoMaximoMinutos = tempoDisponivel * 60;
+    const inicioEmMinutos = converterHorarioParaMinutos(horarioInicio);
+
+    let candidatos = lugares.filter((lugar) => {
+      const combinaCidade =
+        cidadeBase === "Todas" || lugar.cidade === cidadeBase;
+      const combinaCusto = custoCabeNoOrcamento(lugar.custo, orcamento);
+
+      return combinaCidade && combinaCusto;
+    });
+
+    if (
+      priorizarSelecionados &&
+      lugaresSelecionados.length > 0 &&
+      lugaresSelecionadosDetalhados.length > 0
+    ) {
+      const selecionadosValidos = lugaresSelecionadosDetalhados.filter(
+        (lugar) => {
+          const combinaCidade =
+            cidadeBase === "Todas" || lugar.cidade === cidadeBase;
+          const combinaCusto = custoCabeNoOrcamento(lugar.custo, orcamento);
+
+          return combinaCidade && combinaCusto;
+        },
+      );
+
+      if (selecionadosValidos.length > 0) {
+        candidatos = selecionadosValidos;
+      }
+    }
+
+    const ordenados = [...candidatos].sort(
+      (a, b) => calcularPontuacao(b) - calcularPontuacao(a),
+    );
+
+    const paradas: ParadaRoteiro[] = [];
+    let tempoUsado = 0;
+    let horarioAtual = inicioEmMinutos;
+
+    for (const lugar of ordenados) {
+      const deslocamento =
+        paradas.length === 0
+          ? Math.min(calcularDeslocamento(lugar, transporte, ritmo), 25)
+          : calcularDeslocamento(lugar, transporte, ritmo);
+
+      const chegada = arredondarParaMultiplo(horarioAtual + deslocamento, 5);
+      const saida = arredondarParaMultiplo(chegada + lugar.tempoSugeridoMin, 5);
+
+      const tempoDaParada = deslocamento + lugar.tempoSugeridoMin;
+
+      if (tempoUsado + tempoDaParada > tempoMaximoMinutos) {
+        continue;
       }
 
-      return [...interessesAtuais, interesse];
-    });
+      const avisos = obterAvisosHorarioIdeal(lugar, chegada, saida);
+
+      paradas.push({
+        lugar,
+        chegada: converterMinutosParaHorario(chegada),
+        saida: converterMinutosParaHorario(saida),
+        deslocamentoAntes: deslocamento,
+        avisos,
+      });
+
+      tempoUsado += tempoDaParada;
+      horarioAtual = saida;
+    }
+
+    const temGastronomia = paradas.some(
+      (parada) => parada.lugar.categoria === "Gastronomia",
+    );
+
+    if (incluirAlmoco && !temGastronomia) {
+      const restaurante = lugares
+        .filter((lugar) => {
+          const combinaCidade =
+            cidadeBase === "Todas" || lugar.cidade === cidadeBase;
+          const combinaCusto = custoCabeNoOrcamento(lugar.custo, orcamento);
+
+          return (
+            lugar.categoria === "Gastronomia" &&
+            combinaCidade &&
+            combinaCusto &&
+            !paradas.some((parada) => parada.lugar.id === lugar.id)
+          );
+        })
+        .sort((a, b) => b.nota - a.nota)[0];
+
+      if (restaurante) {
+        const deslocamento = calcularDeslocamento(
+          restaurante,
+          transporte,
+          ritmo,
+        );
+
+        const chegada = arredondarParaMultiplo(horarioAtual + deslocamento, 5);
+        const saida = arredondarParaMultiplo(
+          chegada + restaurante.tempoSugeridoMin,
+          5,
+        );
+
+        const tempoDaParada = deslocamento + restaurante.tempoSugeridoMin;
+
+        if (tempoUsado + tempoDaParada <= tempoMaximoMinutos) {
+          const avisos = obterAvisosHorarioIdeal(restaurante, chegada, saida);
+
+          paradas.push({
+            lugar: restaurante,
+            chegada: converterMinutosParaHorario(chegada),
+            saida: converterMinutosParaHorario(saida),
+            deslocamentoAntes: deslocamento,
+            avisos,
+          });
+        }
+      }
+    }
+
+    if (paradas.length === 0) {
+      setRoteiro([]);
+      setMensagem(
+        "Não foi possível montar um roteiro com esses filtros. Tente aumentar o tempo disponível ou mudar o orçamento.",
+      );
+      return;
+    }
+
+    const possuiAvisos = paradas.some((parada) => parada.avisos.length > 0);
+
+    setRoteiro(paradas);
+    setMensagem(
+      possuiAvisos
+        ? "Roteiro gerado, mas alguns locais têm avisos de horário. Confira antes de seguir."
+        : "Roteiro gerado com sucesso!",
+    );
   }
 
   function salvarRoteiro() {
-    if (roteiro.length === 0) return;
+    if (roteiro.length === 0) {
+      setMensagem("Gere um roteiro antes de salvar.");
+      return;
+    }
 
-    const roteirosSalvos = localStorage.getItem(CHAVE_ROTEIROS_SALVOS);
-
-    const roteiros: RoteiroSalvo[] = roteirosSalvos
-      ? JSON.parse(roteirosSalvos)
+    const roteirosSalvosTexto = localStorage.getItem(CHAVE_ROTEIROS_SALVOS);
+    const roteirosSalvos = roteirosSalvosTexto
+      ? JSON.parse(roteirosSalvosTexto)
       : [];
 
-    const novoRoteiro: RoteiroSalvo = {
-      id: Date.now(),
-      titulo: `Roteiro em ${cidadeBase}`,
-      criadoEm: new Date().toLocaleDateString("pt-BR"),
-      cidadeBase,
-      tempoDisponivel,
-      horarioInicio,
-      transporte,
-      orcamento,
-      ritmo,
-      incluirAlmoco,
-      interesses,
+    const novoRoteiro = {
+      id: crypto.randomUUID(),
+      titulo: `Roteiro em ${cidadeBase} - ${new Date().toLocaleDateString(
+        "pt-BR",
+      )}`,
+      criadoEm: new Date().toISOString(),
+      parametros: {
+        cidadeBase,
+        tempoDisponivel,
+        horarioInicio,
+        transporte,
+        orcamento,
+        ritmo,
+        incluirAlmoco,
+        interesses,
+        priorizarSelecionados,
+      },
       resumo,
-      paradas: roteiro.map((item) => ({
-        lugarId: item.lugar.id,
-        nome: item.lugar.nome,
-        cidade: item.lugar.cidade,
-        categoria: item.lugar.categoria,
-        chegada: item.chegada,
-        saida: item.saida,
-        deslocamentoAntes: item.deslocamentoAntes,
-        tempoSugeridoMin: item.lugar.tempoSugeridoMin,
-        precoEstimado: item.lugar.precoEstimado,
-        nota: item.lugar.nota,
+      paradas: roteiro.map((parada) => ({
+        id: parada.lugar.id,
+        nome: parada.lugar.nome,
+        cidade: parada.lugar.cidade,
+        categoria: parada.lugar.categoria,
+        endereco: parada.lugar.endereco,
+        chegada: parada.chegada,
+        saida: parada.saida,
+        deslocamentoAntes: parada.deslocamentoAntes,
+        tempoSugeridoMin: parada.lugar.tempoSugeridoMin,
+        custo: parada.lugar.custo,
+        precoEstimado: parada.lugar.precoEstimado,
+        avisos: parada.avisos ?? [],
       })),
     };
 
     localStorage.setItem(
       CHAVE_ROTEIROS_SALVOS,
-      JSON.stringify([novoRoteiro, ...roteiros])
+      JSON.stringify([novoRoteiro, ...roteirosSalvos]),
     );
 
-    setRoteiroSalvo(true);
+    setMensagem("Roteiro salvo com sucesso!");
   }
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-[#F5F7F8] text-[#0F2433]">
       <Header />
 
-      <section className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-6 py-10">
-          <p className="font-heading font-black text-[#10B981]">
-            Criador de roteiros
-          </p>
+      <section className="soft-grid border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-5 py-12">
+          <div className="max-w-3xl">
+            <span className="font-heading rounded-full bg-[#10B981]/10 px-4 py-2 text-sm font-bold text-[#0F4C5C]">
+              Criador inteligente de roteiros
+            </span>
 
-          <h1 className="mt-2 max-w-4xl text-4xl font-black tracking-tight text-[#0F2433] md:text-5xl">
-            Monte um itinerário funcional para sua viagem.
-          </h1>
+            <h1 className="font-heading mt-6 text-4xl font-black leading-tight text-[#0F2433] md:text-6xl">
+              Monte um roteiro personalizado com base no seu tempo e interesses.
+            </h1>
 
-          <p className="mt-4 max-w-3xl leading-8 text-[#45617A]">
-            O sistema organiza locais com base em tempo disponível, interesses,
-            orçamento, cidade base, ritmo da viagem e deslocamento médio entre
-            os pontos.
-          </p>
+            <p className="mt-5 text-lg leading-8 text-[#45617A]">
+              O Roteirize PB usa os lugares cadastrados no banco e organiza uma
+              sugestão de roteiro considerando cidade, orçamento, transporte,
+              ritmo, interesses, horários ideais e locais selecionados na página
+              Explorar.
+            </p>
+          </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 py-10">
-        <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
-          <aside className="h-fit rounded-3xl bg-white p-6 card-shadow">
-            <h2 className="text-2xl font-black text-[#0F2433]">
-              Preferências da viagem
-            </h2>
+      <section className="mx-auto grid max-w-7xl gap-8 px-5 py-10 lg:grid-cols-[420px_1fr]">
+        <aside className="card-shadow h-fit rounded-[2rem] border border-slate-100 bg-white p-6">
+          <h2 className="font-heading text-2xl font-black text-[#0F2433]">
+            Preferências
+          </h2>
 
-            <p className="mt-2 text-sm leading-6 text-[#45617A]">
-              Altere as informações abaixo para gerar diferentes possibilidades
-              de roteiro.
-            </p>
+          <p className="mt-2 text-sm leading-6 text-[#45617A]">
+            Ajuste os campos abaixo para o sistema gerar uma sugestão de
+            roteiro.
+          </p>
 
-            <div className="mt-6 rounded-3xl bg-[#10B981]/10 p-4">
-              <p className="text-sm font-black text-[#0F4C5C]">
-                Seleção da página Explorar
-              </p>
-
-              <p className="mt-2 text-3xl font-black text-[#0F2433]">
-                {lugaresSelecionadosIds.length} lugares
-              </p>
-
-              {lugaresSelecionadosIds.length > 0 ? (
-                <>
-                  <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-2xl bg-white p-4">
-                    <input
-                      type="checkbox"
-                      checked={usarSelecionados}
-                      onChange={(event) =>
-                        setUsarSelecionados(event.target.checked)
-                      }
-                      className="h-5 w-5 accent-[#10B981]"
-                    />
-
-                    <span className="text-sm font-black text-[#0F2433]">
-                      Priorizar apenas lugares selecionados
-                    </span>
-                  </label>
-
-                  <button
-                    onClick={limparSelecao}
-                    className="mt-3 w-full rounded-2xl border border-[#10B981]/30 px-4 py-3 text-sm font-black text-[#0F4C5C] transition hover:bg-white"
-                  >
-                    Limpar seleção
-                  </button>
-                </>
-              ) : (
-                <div className="mt-4">
-                  <p className="text-sm leading-6 text-[#45617A]">
-                    Nenhum lugar foi selecionado ainda. Você pode montar um
-                    roteiro automático ou escolher locais manualmente na página
-                    Explorar.
-                  </p>
-
-                  <Link
-                    href="/explorar"
-                    className="mt-3 block rounded-2xl bg-[#10B981] px-4 py-3 text-center text-sm font-black text-white transition hover:bg-[#0F4C5C]"
-                  >
-                    Escolher lugares
-                  </Link>
-                </div>
-              )}
+          <div className="mt-6 space-y-5">
+            <div>
+              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+                Cidade base
+              </label>
+              <select
+                value={cidadeBase}
+                onChange={(event) => setCidadeBase(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#10B981]"
+              >
+                {cidades.map((cidade) => (
+                  <option key={cidade} value={cidade}>
+                    {cidade}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <div className="mt-6 grid gap-5">
-              <div>
-                <label className="text-sm font-black text-[#0F2433]">
-                  Cidade base
-                </label>
+            <div>
+              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+                Tempo disponível: {tempoDisponivel}h
+              </label>
+              <input
+                type="range"
+                min={2}
+                max={10}
+                value={tempoDisponivel}
+                onChange={(event) =>
+                  setTempoDisponivel(Number(event.target.value))
+                }
+                className="mt-3 w-full"
+              />
+            </div>
 
-                <select
-                  value={cidadeBase}
-                  onChange={(event) => setCidadeBase(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#10B981]"
-                >
-                  {cidades.map((cidade) => (
-                    <option key={cidade}>{cidade}</option>
-                  ))}
-                </select>
+            <div>
+              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+                Horário inicial
+              </label>
+              <input
+                type="time"
+                value={horarioInicio}
+                onChange={(event) => setHorarioInicio(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#10B981]"
+              />
+            </div>
+
+            <div>
+              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+                Transporte
+              </label>
+              <select
+                value={transporte}
+                onChange={(event) => setTransporte(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#10B981]"
+              >
+                {opcoesTransporte.map((opcao) => (
+                  <option key={opcao} value={opcao}>
+                    {opcao}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+                Orçamento
+              </label>
+              <select
+                value={orcamento}
+                onChange={(event) => setOrcamento(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#10B981]"
+              >
+                {opcoesOrcamento.map((opcao) => (
+                  <option key={opcao} value={opcao}>
+                    {opcao}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+                Ritmo
+              </label>
+              <select
+                value={ritmo}
+                onChange={(event) => setRitmo(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#10B981]"
+              >
+                {opcoesRitmo.map((opcao) => (
+                  <option key={opcao} value={opcao}>
+                    {opcao}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <p className="font-heading text-sm font-bold text-[#0F4C5C]">
+                Interesses
+              </p>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {categorias.map((categoria) => {
+                  const ativo = interesses.includes(categoria);
+
+                  return (
+                    <button
+                      key={categoria}
+                      type="button"
+                      onClick={() => alternarInteresse(categoria)}
+                      className={
+                        ativo
+                          ? "font-heading rounded-full bg-[#10B981] px-4 py-2 text-xs font-bold text-white"
+                          : "font-heading rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-[#45617A] transition hover:border-[#10B981] hover:text-[#10B981]"
+                      }
+                    >
+                      {categoria}
+                    </button>
+                  );
+                })}
               </div>
+            </div>
 
-              <div>
-                <label className="text-sm font-black text-[#0F2433]">
-                  Tempo disponível
-                </label>
-
-                <select
-                  value={tempoDisponivel}
-                  onChange={(event) =>
-                    setTempoDisponivel(Number(event.target.value))
-                  }
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#10B981]"
-                >
-                  <option value={4}>Meio dia - 4 horas</option>
-                  <option value={8}>1 dia - 8 horas</option>
-                  <option value={10}>Dia completo - 10 horas</option>
-                  <option value={16}>Fim de semana - 16 horas</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-sm font-black text-[#0F2433]">
-                  Horário inicial
-                </label>
-
-                <input
-                  type="time"
-                  value={horarioInicio}
-                  onChange={(event) => setHorarioInicio(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#10B981]"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-black text-[#0F2433]">
-                  Transporte
-                </label>
-
-                <select
-                  value={transporte}
-                  onChange={(event) => setTransporte(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#10B981]"
-                >
-                  <option>Carro</option>
-                  <option>Uber</option>
-                  <option>Ônibus</option>
-                  <option>A pé</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-sm font-black text-[#0F2433]">
-                  Orçamento máximo
-                </label>
-
-                <select
-                  value={orcamento}
-                  onChange={(event) =>
-                    setOrcamento(event.target.value as Custo | "Livre")
-                  }
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#10B981]"
-                >
-                  {opcoesOrcamento.map((opcao) => (
-                    <option key={opcao}>{opcao}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-sm font-black text-[#0F2433]">
-                  Ritmo do roteiro
-                </label>
-
-                <select
-                  value={ritmo}
-                  onChange={(event) => setRitmo(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#10B981]"
-                >
-                  <option>Leve</option>
-                  <option>Moderado</option>
-                  <option>Intenso</option>
-                </select>
-              </div>
-
-              <label className="flex cursor-pointer items-center gap-3 rounded-2xl bg-slate-50 p-4">
-                <input
-                  type="checkbox"
-                  checked={incluirAlmoco}
-                  onChange={(event) => setIncluirAlmoco(event.target.checked)}
-                  className="h-5 w-5 accent-[#10B981]"
-                />
-
-                <span className="text-sm font-black text-[#0F2433]">
+            <label className="flex cursor-pointer items-start gap-3 rounded-2xl bg-slate-50 p-4">
+              <input
+                type="checkbox"
+                checked={incluirAlmoco}
+                onChange={(event) => setIncluirAlmoco(event.target.checked)}
+                className="mt-1"
+              />
+              <span>
+                <span className="font-heading block text-sm font-bold text-[#0F4C5C]">
                   Incluir parada para almoço
                 </span>
-              </label>
+                <span className="mt-1 block text-xs leading-5 text-[#45617A]">
+                  O sistema tenta encaixar uma opção gastronômica se houver
+                  tempo disponível.
+                </span>
+              </span>
+            </label>
 
+            <label className="flex cursor-pointer items-start gap-3 rounded-2xl bg-slate-50 p-4">
+              <input
+                type="checkbox"
+                checked={priorizarSelecionados}
+                onChange={(event) =>
+                  setPriorizarSelecionados(event.target.checked)
+                }
+                className="mt-1"
+              />
+              <span>
+                <span className="font-heading block text-sm font-bold text-[#0F4C5C]">
+                  Priorizar lugares selecionados
+                </span>
+                <span className="mt-1 block text-xs leading-5 text-[#45617A]">
+                  Usa os locais marcados na página Explorar como prioridade.
+                </span>
+              </span>
+            </label>
+
+            <button
+              onClick={gerarRoteiro}
+              disabled={carregando}
+              className="font-heading w-full rounded-full bg-[#0F4C5C] px-6 py-4 text-sm font-black text-white transition hover:bg-[#10B981] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {carregando ? "Carregando lugares..." : "Gerar roteiro"}
+            </button>
+          </div>
+        </aside>
+
+        <section className="space-y-6">
+          <div className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
-                <label className="text-sm font-black text-[#0F2433]">
-                  Interesses
-                </label>
+                <h2 className="font-heading text-2xl font-black text-[#0F2433]">
+                  Seleção da página Explorar
+                </h2>
 
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {interessesDisponiveis.map((interesse) => {
-                    const ativo = interesses.includes(interesse);
+                <p className="mt-2 text-sm leading-6 text-[#45617A]">
+                  {lugaresSelecionadosDetalhados.length > 0
+                    ? `${lugaresSelecionadosDetalhados.length} lugar(es) selecionado(s) serão considerados na geração.`
+                    : "Nenhum lugar foi selecionado ainda. Você pode gerar um roteiro automático ou escolher lugares em Explorar."}
+                </p>
+              </div>
+
+              <Link
+                href="/explorar"
+                className="font-heading rounded-full border border-slate-200 px-5 py-3 text-center text-sm font-bold text-[#0F4C5C] transition hover:border-[#10B981] hover:text-[#10B981]"
+              >
+                Escolher lugares
+              </Link>
+            </div>
+
+            {lugaresSelecionadosDetalhados.length > 0 && (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {lugaresSelecionadosDetalhados.map((lugar) => (
+                  <span
+                    key={lugar.id}
+                    className="rounded-full bg-[#10B981]/10 px-3 py-2 text-xs font-bold text-[#0F4C5C]"
+                  >
+                    {lugar.nome}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {erro && (
+            <div className="rounded-[2rem] border border-red-100 bg-red-50 p-6 font-semibold text-red-600">
+              {erro}
+            </div>
+          )}
+
+          {mensagem && (
+            <div className="rounded-[2rem] border border-[#10B981]/20 bg-[#10B981]/10 p-6 font-semibold text-[#0F4C5C]">
+              {mensagem}
+            </div>
+          )}
+
+          {roteiro.length === 0 ? (
+            <div className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-8 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-[#F2C98A]/50 text-3xl">
+                🧭
+              </div>
+
+              <h2 className="font-heading mt-5 text-2xl font-black text-[#0F2433]">
+                Seu roteiro aparecerá aqui
+              </h2>
+
+              <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[#45617A]">
+                Preencha suas preferências e clique em gerar roteiro. O sistema
+                buscará os lugares do banco e organizará uma sequência viável.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-4 md:grid-cols-4">
+                <div className="rounded-[1.5rem] bg-white p-5 shadow-sm">
+                  <p className="font-heading text-xs font-bold text-[#45617A]">
+                    Tempo nos locais
+                  </p>
+                  <p className="font-heading mt-2 text-2xl font-black text-[#0F4C5C]">
+                    {resumo.totalVisitas} min
+                  </p>
+                </div>
+
+                <div className="rounded-[1.5rem] bg-white p-5 shadow-sm">
+                  <p className="font-heading text-xs font-bold text-[#45617A]">
+                    Deslocamento
+                  </p>
+                  <p className="font-heading mt-2 text-2xl font-black text-[#0F4C5C]">
+                    {resumo.totalDeslocamento} min
+                  </p>
+                </div>
+
+                <div className="rounded-[1.5rem] bg-white p-5 shadow-sm">
+                  <p className="font-heading text-xs font-bold text-[#45617A]">
+                    Custo médio
+                  </p>
+                  <p className="font-heading mt-2 text-2xl font-black text-[#0F4C5C]">
+                    R$ {resumo.custoEstimado}
+                  </p>
+                </div>
+
+                <div className="rounded-[1.5rem] bg-white p-5 shadow-sm">
+                  <p className="font-heading text-xs font-bold text-[#45617A]">
+                    Nível
+                  </p>
+                  <p className="font-heading mt-2 text-lg font-black text-[#0F4C5C]">
+                    {resumo.nivel}
+                  </p>
+                </div>
+              </div>
+
+              <div className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h2 className="font-heading text-2xl font-black text-[#0F2433]">
+                      Roteiro sugerido
+                    </h2>
+                    <p className="mt-2 text-sm text-[#45617A]">
+                      Gerado com base nos dados carregados do Neon + Prisma.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={salvarRoteiro}
+                    className="font-heading rounded-full bg-[#10B981] px-6 py-3 text-sm font-black text-white transition hover:bg-[#0F4C5C]"
+                  >
+                    Salvar roteiro
+                  </button>
+                </div>
+
+                <div className="mt-6 space-y-4">
+                  {roteiro.map((parada, index) => {
+                    const avisosDaParada = parada.avisos ?? [];
 
                     return (
-                      <button
-                        key={interesse}
-                        onClick={() => alternarInteresse(interesse)}
-                        className={`rounded-full px-4 py-2 text-sm font-black transition ${
-                          ativo
-                            ? "bg-[#10B981] text-white"
-                            : "bg-slate-100 text-[#45617A] hover:bg-slate-200"
-                        }`}
+                      <article
+                        key={parada.lugar.id}
+                        className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-5"
                       >
-                        {interesse}
-                      </button>
+                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <span className="font-heading rounded-full bg-white px-3 py-1 text-xs font-bold text-[#0F4C5C]">
+                              Parada {index + 1} • {parada.lugar.categoria}
+                            </span>
+
+                            <h3 className="font-heading mt-4 text-xl font-black text-[#0F2433]">
+                              {parada.lugar.nome}
+                            </h3>
+
+                            <p className="mt-2 text-sm leading-6 text-[#45617A]">
+                              {parada.lugar.descricao}
+                            </p>
+
+                            <p className="mt-3 text-sm font-semibold text-[#45617A]">
+                              {parada.lugar.endereco}
+                            </p>
+
+                            <p className="mt-2 text-xs font-bold text-[#0F4C5C]">
+                              Horário ideal: {parada.lugar.horarioIdeal}
+                            </p>
+
+                            {avisosDaParada.length > 0 && (
+                              <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-4">
+                                <p className="font-heading text-xs font-black text-yellow-800">
+                                  Atenção ao horário
+                                </p>
+
+                                <ul className="mt-2 space-y-1 text-xs font-semibold leading-5 text-yellow-800">
+                                  {avisosDaParada.map((aviso) => (
+                                    <li key={aviso}>• {aviso}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="min-w-40 rounded-2xl bg-white p-4 text-sm">
+                            <p className="font-heading font-black text-[#0F4C5C]">
+                              {parada.chegada} - {parada.saida}
+                            </p>
+                            <p className="mt-2 text-[#45617A]">
+                              Deslocamento: {parada.deslocamentoAntes} min
+                            </p>
+                            <p className="mt-1 text-[#45617A]">
+                              No local: {parada.lugar.tempoSugeridoMin} min
+                            </p>
+                          </div>
+                        </div>
+                      </article>
                     );
                   })}
                 </div>
               </div>
-            </div>
-          </aside>
 
-          <section className="rounded-3xl bg-white p-6 card-shadow">
-            <div className="flex flex-col gap-4 border-b border-slate-100 pb-6 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="font-heading font-black text-[#10B981]">
-                  Roteiro gerado automaticamente
-                </p>
-
-                <h2 className="mt-1 text-2xl font-black text-[#0F2433]">
-                  Roteiro sugerido
-                </h2>
-
-                <p className="mt-1 text-sm text-[#45617A]">
-                  {roteiro.length} paradas selecionadas com base nas
-                  preferências.
-                </p>
-              </div>
-
-              <button
-                onClick={salvarRoteiro}
-                disabled={roteiro.length === 0}
-                className="rounded-2xl bg-[#10B981] px-5 py-3 font-black text-white transition hover:bg-[#0F4C5C] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Salvar roteiro
-              </button>
-            </div>
-
-            {roteiroSalvo && (
-              <div className="mt-6 rounded-3xl bg-[#10B981]/10 p-5">
-                <p className="font-black text-[#0F4C5C]">
-                  Roteiro salvo com sucesso!
-                </p>
-
-                <p className="mt-2 text-sm leading-6 text-[#45617A]">
-                  Você pode acessar esse roteiro depois na página de roteiros
-                  salvos.
-                </p>
-
-                <Link
-                  href="/roteiros-salvos"
-                  className="mt-4 inline-flex rounded-2xl bg-[#10B981] px-5 py-3 text-sm font-black text-white transition hover:bg-[#0F4C5C]"
-                >
-                  Ver roteiros salvos
-                </Link>
-              </div>
-            )}
-
-            {roteiro.length === 0 ? (
-              <div className="py-16 text-center">
-                <h3 className="text-2xl font-black text-[#0F2433]">
-                  Nenhum roteiro encontrado
-                </h3>
-
-                <p className="mt-2 text-[#45617A]">
-                  Tente aumentar o tempo disponível, selecionar mais interesses
-                  ou liberar o orçamento.
-                </p>
-              </div>
-            ) : (
-              <div className="mt-6">
-                <div className="grid gap-4 md:grid-cols-4">
-                  <div className="rounded-3xl bg-slate-50 p-5">
-                    <p className="text-sm font-black text-[#45617A]">
-                      Tempo em visitas
-                    </p>
-
-                    <p className="mt-2 text-2xl font-black text-[#0F2433]">
-                      {Math.floor(resumo.tempoTotalLocais / 60)}h{" "}
-                      {resumo.tempoTotalLocais % 60}min
-                    </p>
-                  </div>
-
-                  <div className="rounded-3xl bg-slate-50 p-5">
-                    <p className="text-sm font-black text-[#45617A]">
-                      Deslocamento
-                    </p>
-
-                    <p className="mt-2 text-2xl font-black text-[#0F2433]">
-                      {resumo.tempoTotalDeslocamento}min
-                    </p>
-                  </div>
-
-                  <div className="rounded-3xl bg-slate-50 p-5">
-                    <p className="text-sm font-black text-[#45617A]">
-                      Custo estimado
-                    </p>
-
-                    <p className="mt-2 text-2xl font-black text-[#0F2433]">
-                      R$ {resumo.custo.minimo} - {resumo.custo.maximo}
-                    </p>
-                  </div>
-
-                  <div className="rounded-3xl bg-slate-50 p-5">
-                    <p className="text-sm font-black text-[#45617A]">Nível</p>
-
-                    <p className="mt-2 text-2xl font-black text-[#0F2433]">
-                      {resumo.nivel}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-8 space-y-4">
-                  {roteiro.map((item, index) => (
-                    <article
-                      key={item.lugar.id}
-                      className="grid gap-4 rounded-3xl border border-slate-100 bg-white p-5 transition hover:border-[#10B981]/40 md:grid-cols-[95px_1fr_165px]"
-                    >
-                      <div>
-                        <p className="text-sm font-black text-[#10B981]">
-                          Parada {index + 1}
-                        </p>
-
-                        <p className="mt-2 text-2xl font-black text-[#0F2433]">
-                          {item.chegada}
-                        </p>
-
-                        <p className="text-sm text-[#45617A]">
-                          até {item.saida}
-                        </p>
-                      </div>
-
-                      <div>
-                        {item.deslocamentoAntes > 0 && (
-                          <p className="mb-3 w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
-                            + {item.deslocamentoAntes} min de deslocamento
-                          </p>
-                        )}
-
-                        <p className="w-fit rounded-full bg-[#10B981]/10 px-3 py-1 text-xs font-black text-[#0F4C5C]">
-                          {item.lugar.categoria}
-                        </p>
-
-                        <h3 className="mt-3 text-xl font-black text-[#0F2433]">
-                          {item.lugar.nome}
-                        </h3>
-
-                        <p className="mt-2 text-sm leading-6 text-[#45617A]">
-                          {item.lugar.descricao}
-                        </p>
-
-                        <p className="mt-3 text-sm font-bold text-[#0F2433]">
-                          Horário ideal: {item.lugar.horarioIdeal}
-                        </p>
-                      </div>
-
-                      <div className="rounded-2xl bg-slate-50 p-4 text-sm">
-                        <p className="font-black text-[#0F2433]">
-                          {item.lugar.precoEstimado}
-                        </p>
-
-                        <p className="mt-2 text-[#45617A]">
-                          {item.lugar.tempoSugeridoMin} min no local
-                        </p>
-
-                        <p className="mt-2 font-black text-amber-600">
-                          ★ {item.lugar.nota}
-                        </p>
-
-                        <p className="mt-2 text-[#45617A]">
-                          {item.lugar.cidade}
-                        </p>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
-        </div>
+              <MapaRoteiro paradas={roteiro} />
+            </>
+          )}
+        </section>
       </section>
     </main>
   );
