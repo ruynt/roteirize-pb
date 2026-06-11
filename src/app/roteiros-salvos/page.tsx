@@ -6,324 +6,453 @@ import { useEffect, useMemo, useState } from "react";
 
 const CHAVE_ROTEIROS_SALVOS = "roteirize_roteiros_salvos";
 
-type RoteiroSalvo = {
-  id: number;
-  titulo: string;
-  criadoEm: string;
-  cidadeBase: string;
-  tempoDisponivel: number;
-  horarioInicio: string;
-  transporte: string;
-  orcamento: string;
-  ritmo: string;
-  incluirAlmoco: boolean;
-  interesses: string[];
-  resumo: {
-    tempoTotalLocais: number;
-    tempoTotalDeslocamento: number;
-    custo: {
-      minimo: number;
-      maximo: number;
-    };
-    nivel: string;
-  };
-  paradas: Array<{
-    lugarId: number;
-    nome: string;
-    cidade: string;
-    categoria: string;
-    chegada: string;
-    saida: string;
-    deslocamentoAntes: number;
-    tempoSugeridoMin: number;
-    precoEstimado: string;
-    nota: number;
-  }>;
+type ParadaSalva = {
+  id?: string;
+  nome?: string;
+  cidade?: string;
+  categoria?: string;
+  endereco?: string;
+  chegada?: string;
+  saida?: string;
+  deslocamentoAntes?: number;
+  tempoSugeridoMin?: number;
+  custo?: string;
+  precoEstimado?: string;
+  avisos?: string[];
 };
+
+type ResumoRoteiro = {
+  totalVisitas?: number;
+  totalDeslocamento?: number;
+  totalGeral?: number;
+  custoEstimado?: number;
+  nivel?: string;
+  custo?: {
+    minimo?: number;
+    maximo?: number;
+  };
+};
+
+type RoteiroSalvo = {
+  id: string;
+  titulo?: string;
+  criadoEm?: string;
+  parametros?: {
+    cidadeBase?: string;
+    tempoDisponivel?: number;
+    horarioInicio?: string;
+    transporte?: string;
+    orcamento?: string;
+    ritmo?: string;
+    incluirAlmoco?: boolean;
+    interesses?: string[];
+    priorizarSelecionados?: boolean;
+  };
+  resumo?: ResumoRoteiro;
+  paradas?: ParadaSalva[];
+};
+
+function formatarData(data?: string) {
+  if (!data) {
+    return "Data não informada";
+  }
+
+  try {
+    return new Date(data).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "Data não informada";
+  }
+}
+
+function calcularTotalParadas(roteiros: RoteiroSalvo[]) {
+  return roteiros.reduce(
+    (total, roteiro) => total + (roteiro.paradas?.length ?? 0),
+    0,
+  );
+}
+
+function obterCustoResumo(resumo?: ResumoRoteiro) {
+  if (!resumo) {
+    return "Não informado";
+  }
+
+  if (typeof resumo.custoEstimado === "number") {
+    return `R$ ${resumo.custoEstimado}`;
+  }
+
+  if (resumo.custo) {
+    const minimo = resumo.custo.minimo ?? 0;
+    const maximo = resumo.custo.maximo ?? minimo;
+
+    if (minimo === maximo) {
+      return `R$ ${minimo}`;
+    }
+
+    return `R$ ${minimo} - R$ ${maximo}`;
+  }
+
+  return "Não informado";
+}
+
+function obterTempoTotal(resumo?: ResumoRoteiro) {
+  if (!resumo) {
+    return "Não informado";
+  }
+
+  if (typeof resumo.totalGeral === "number") {
+    return `${resumo.totalGeral} min`;
+  }
+
+  const visitas = resumo.totalVisitas ?? 0;
+  const deslocamento = resumo.totalDeslocamento ?? 0;
+  const total = visitas + deslocamento;
+
+  if (total > 0) {
+    return `${total} min`;
+  }
+
+  return "Não informado";
+}
+
+function montarLinkGoogleMaps(paradas: ParadaSalva[]) {
+  if (paradas.length === 0) {
+    return "https://www.google.com/maps";
+  }
+
+  function textoLocal(parada: ParadaSalva) {
+    return `${parada.nome ?? "Local"}, ${parada.endereco ?? ""}, ${
+      parada.cidade ?? "Paraíba"
+    }`;
+  }
+
+  if (paradas.length === 1) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      textoLocal(paradas[0]),
+    )}`;
+  }
+
+  const origem = encodeURIComponent(textoLocal(paradas[0]));
+  const destino = encodeURIComponent(textoLocal(paradas[paradas.length - 1]));
+
+  const waypointsTexto = paradas
+    .slice(1, -1)
+    .map((parada) => textoLocal(parada))
+    .join("|");
+
+  const waypoints = waypointsTexto
+    ? `&waypoints=${encodeURIComponent(waypointsTexto)}`
+    : "";
+
+  return `https://www.google.com/maps/dir/?api=1&origin=${origem}&destination=${destino}${waypoints}&travelmode=driving`;
+}
 
 export default function RoteirosSalvosPage() {
   const [roteiros, setRoteiros] = useState<RoteiroSalvo[]>([]);
+  const [mensagem, setMensagem] = useState("");
 
   useEffect(() => {
-    const roteirosSalvos = localStorage.getItem(CHAVE_ROTEIROS_SALVOS);
+    const roteirosTexto = localStorage.getItem(CHAVE_ROTEIROS_SALVOS);
 
-    if (roteirosSalvos) {
-      const dados: RoteiroSalvo[] = JSON.parse(roteirosSalvos);
-      setRoteiros(dados);
+    if (!roteirosTexto) {
+      return;
+    }
+
+    try {
+      const roteirosSalvos = JSON.parse(roteirosTexto) as RoteiroSalvo[];
+      setRoteiros(Array.isArray(roteirosSalvos) ? roteirosSalvos : []);
+    } catch {
+      localStorage.removeItem(CHAVE_ROTEIROS_SALVOS);
+      setRoteiros([]);
+      setMensagem("Havia dados antigos corrompidos. A lista foi reiniciada.");
     }
   }, []);
 
-  const resumo = useMemo(() => {
-    const totalParadas = roteiros.reduce(
-      (total, roteiro) => total + roteiro.paradas.length,
-      0
-    );
+  const totalParadas = useMemo(
+    () => calcularTotalParadas(roteiros),
+    [roteiros],
+  );
 
-    return {
-      totalRoteiros: roteiros.length,
-      totalParadas,
-    };
-  }, [roteiros]);
+  function removerRoteiro(id: string) {
+    const novaLista = roteiros.filter((roteiro) => roteiro.id !== id);
 
-  function salvarRoteiros(novosRoteiros: RoteiroSalvo[]) {
-    setRoteiros(novosRoteiros);
-    localStorage.setItem(
-      CHAVE_ROTEIROS_SALVOS,
-      JSON.stringify(novosRoteiros)
-    );
-  }
-
-  function removerRoteiro(id: number) {
-    const novosRoteiros = roteiros.filter((roteiro) => roteiro.id !== id);
-    salvarRoteiros(novosRoteiros);
+    setRoteiros(novaLista);
+    localStorage.setItem(CHAVE_ROTEIROS_SALVOS, JSON.stringify(novaLista));
+    setMensagem("Roteiro removido com sucesso.");
   }
 
   function limparTodos() {
+    const confirmar = confirm(
+      "Tem certeza que deseja remover todos os roteiros?",
+    );
+
+    if (!confirmar) {
+      return;
+    }
+
     setRoteiros([]);
     localStorage.removeItem(CHAVE_ROTEIROS_SALVOS);
+    setMensagem("Todos os roteiros foram removidos.");
   }
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-[#F5F7F8] text-[#0F2433]">
       <Header />
 
-      <section className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-6 py-10">
-          <p className="font-heading font-black text-[#10B981]">
-            Roteiros salvos
-          </p>
+      <section className="soft-grid border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-5 py-12">
+          <div className="max-w-3xl">
+            <span className="font-heading rounded-full bg-[#10B981]/10 px-4 py-2 text-sm font-bold text-[#0F4C5C]">
+              Roteiros salvos
+            </span>
 
-          <h1 className="mt-2 max-w-4xl text-4xl font-black tracking-tight text-[#0F2433] md:text-5xl">
-            Consulte os roteiros que você salvou.
-          </h1>
+            <h1 className="font-heading mt-6 text-4xl font-black leading-tight text-[#0F2433] md:text-6xl">
+              Consulte os roteiros que você já criou.
+            </h1>
 
-          <p className="mt-4 max-w-3xl leading-8 text-[#45617A]">
-            Nesta versão de demonstração, os roteiros ficam salvos no navegador
-            usando localStorage. Em uma versão final, seriam armazenados em banco
-            de dados vinculados à conta do usuário.
-          </p>
+            <p className="mt-5 text-lg leading-8 text-[#45617A]">
+              Os roteiros ficam salvos no navegador para facilitar a
+              demonstração do fluxo turístico: explorar lugares, gerar roteiro,
+              salvar e acompanhar conquistas no passaporte digital.
+            </p>
+          </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 py-10">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-3xl bg-white p-5 card-shadow">
-            <p className="text-sm font-black text-[#45617A]">
+      <section className="mx-auto max-w-7xl px-5 py-10">
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="card-shadow rounded-[1.5rem] bg-white p-5">
+            <p className="font-heading text-xs font-bold text-[#45617A]">
               Roteiros salvos
             </p>
-
-            <p className="mt-2 text-3xl font-black text-[#0F2433]">
-              {resumo.totalRoteiros}
+            <p className="font-heading mt-2 text-3xl font-black text-[#0F4C5C]">
+              {roteiros.length}
             </p>
           </div>
 
-          <div className="rounded-3xl bg-white p-5 card-shadow">
-            <p className="text-sm font-black text-[#45617A]">
+          <div className="card-shadow rounded-[1.5rem] bg-white p-5">
+            <p className="font-heading text-xs font-bold text-[#45617A]">
               Paradas planejadas
             </p>
+            <p className="font-heading mt-2 text-3xl font-black text-[#0F4C5C]">
+              {totalParadas}
+            </p>
+          </div>
 
-            <p className="mt-2 text-3xl font-black text-[#0F2433]">
-              {resumo.totalParadas}
+          <div className="card-shadow rounded-[1.5rem] bg-white p-5">
+            <p className="font-heading text-xs font-bold text-[#45617A]">
+              Gamificação
+            </p>
+            <p className="font-heading mt-2 text-xl font-black text-[#10B981]">
+              Passaporte ativo
             </p>
           </div>
         </div>
 
-        <div className="mt-8 rounded-3xl bg-white p-6 card-shadow">
-          <div className="flex flex-col gap-4 border-b border-slate-100 pb-6 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-2xl font-black text-[#0F2433]">
-                Meus roteiros
-              </h2>
+        {mensagem && (
+          <div className="mt-6 rounded-2xl border border-[#10B981]/20 bg-[#10B981]/10 p-4 text-sm font-semibold text-[#0F4C5C]">
+            {mensagem}
+          </div>
+        )}
 
-              <p className="mt-1 text-sm text-[#45617A]">
-                Lista de roteiros gerados e salvos na plataforma.
-              </p>
-            </div>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/criar-roteiro"
+              className="font-heading rounded-full bg-[#0F4C5C] px-6 py-3 text-center text-sm font-black text-white transition hover:bg-[#10B981]"
+            >
+              Criar novo roteiro
+            </Link>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/criar-roteiro"
-                className="rounded-2xl bg-[#10B981] px-4 py-3 text-center font-black text-white transition hover:bg-[#0F4C5C]"
-              >
-                Criar novo roteiro
-              </Link>
-
-              {roteiros.length > 0 && (
-                <button
-                  onClick={limparTodos}
-                  className="rounded-2xl border border-slate-200 px-4 py-3 font-black text-[#45617A] transition hover:border-red-300 hover:text-red-600"
-                >
-                  Limpar todos
-                </button>
-              )}
-            </div>
+            <Link
+              href="/passaporte"
+              className="font-heading rounded-full border border-slate-200 bg-white px-6 py-3 text-center text-sm font-black text-[#0F4C5C] transition hover:border-[#10B981] hover:text-[#10B981]"
+            >
+              Ver passaporte digital
+            </Link>
           </div>
 
-          {roteiros.length === 0 ? (
-            <div className="py-14 text-center">
-              <h3 className="text-2xl font-black text-[#0F2433]">
-                Nenhum roteiro salvo ainda
-              </h3>
+          {roteiros.length > 0 && (
+            <button
+              onClick={limparTodos}
+              className="font-heading rounded-full border border-red-200 bg-white px-6 py-3 text-sm font-black text-red-600 transition hover:bg-red-50"
+            >
+              Limpar todos
+            </button>
+          )}
+        </div>
 
-              <p className="mt-2 text-[#45617A]">
-                Gere um roteiro e clique em “Salvar roteiro” para ele aparecer
-                aqui.
-              </p>
-
-              <Link
-                href="/criar-roteiro"
-                className="mt-6 inline-flex rounded-2xl bg-[#10B981] px-5 py-3 font-black text-white transition hover:bg-[#0F4C5C]"
-              >
-                Criar roteiro
-              </Link>
+        {roteiros.length === 0 ? (
+          <div className="card-shadow mt-8 rounded-[2rem] border border-slate-100 bg-white p-8 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-[#F2C98A]/50 text-3xl">
+              🧭
             </div>
-          ) : (
-            <div className="mt-6 grid gap-5">
-              {roteiros.map((roteiro) => (
+
+            <h2 className="font-heading mt-5 text-2xl font-black text-[#0F2433]">
+              Nenhum roteiro salvo ainda
+            </h2>
+
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[#45617A]">
+              Gere um roteiro personalizado e clique em salvar para ele aparecer
+              nesta página.
+            </p>
+
+            <Link
+              href="/criar-roteiro"
+              className="font-heading mt-6 inline-flex rounded-full bg-[#10B981] px-6 py-3 text-sm font-black text-white transition hover:bg-[#0F4C5C]"
+            >
+              Criar primeiro roteiro
+            </Link>
+          </div>
+        ) : (
+          <div className="mt-8 grid gap-6">
+            {roteiros.map((roteiro, roteiroIndex) => {
+              const paradas = roteiro.paradas ?? [];
+              const linkMaps = montarLinkGoogleMaps(paradas);
+
+              return (
                 <article
-                  key={roteiro.id}
-                  className="rounded-3xl border border-slate-100 bg-white p-5 transition hover:border-[#10B981]/40"
+                  key={roteiro.id ?? roteiroIndex}
+                  className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6"
                 >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                      <div className="flex flex-wrap gap-2">
-                        <span className="rounded-full bg-[#10B981]/10 px-3 py-1 text-xs font-black text-[#0F4C5C]">
-                          {roteiro.cidadeBase}
-                        </span>
+                      <span className="font-heading rounded-full bg-[#10B981]/10 px-4 py-2 text-xs font-bold text-[#0F4C5C]">
+                        {formatarData(roteiro.criadoEm)}
+                      </span>
 
-                        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
-                          Salvo em {roteiro.criadoEm}
-                        </span>
+                      <h2 className="font-heading mt-5 text-2xl font-black text-[#0F2433]">
+                        {roteiro.titulo ?? `Roteiro ${roteiroIndex + 1}`}
+                      </h2>
 
-                        <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">
-                          {roteiro.resumo.nivel}
-                        </span>
+                      <p className="mt-3 text-sm leading-6 text-[#45617A]">
+                        {roteiro.parametros?.cidadeBase
+                          ? `Cidade base: ${roteiro.parametros.cidadeBase}.`
+                          : "Roteiro personalizado gerado pela plataforma."}{" "}
+                        {paradas.length} parada(s) planejada(s).
+                      </p>
+
+                      {roteiro.parametros?.interesses &&
+                        roteiro.parametros.interesses.length > 0 && (
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {roteiro.parametros.interesses.map((interesse) => (
+                              <span
+                                key={interesse}
+                                className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-[#45617A]"
+                              >
+                                {interesse}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                    </div>
+
+                    <div className="grid min-w-72 gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                      <div className="rounded-2xl bg-slate-50 p-4">
+                        <p className="font-heading text-xs font-bold text-[#45617A]">
+                          Tempo total
+                        </p>
+                        <p className="mt-1 font-black text-[#0F4C5C]">
+                          {obterTempoTotal(roteiro.resumo)}
+                        </p>
                       </div>
 
-                      <h3 className="mt-4 text-2xl font-black text-[#0F2433]">
-                        {roteiro.titulo}
-                      </h3>
+                      <div className="rounded-2xl bg-slate-50 p-4">
+                        <p className="font-heading text-xs font-bold text-[#45617A]">
+                          Custo estimado
+                        </p>
+                        <p className="mt-1 font-black text-[#0F4C5C]">
+                          {obterCustoResumo(roteiro.resumo)}
+                        </p>
+                      </div>
 
-                      <p className="mt-2 leading-7 text-[#45617A]">
-                        {roteiro.paradas.length} paradas • Início às{" "}
-                        {roteiro.horarioInicio} • Transporte:{" "}
-                        {roteiro.transporte} • Orçamento: {roteiro.orcamento}
-                      </p>
-                    </div>
-
-                    <button
-                      onClick={() => removerRoteiro(roteiro.id)}
-                      className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-black text-[#45617A] transition hover:border-red-300 hover:text-red-600"
-                    >
-                      Remover
-                    </button>
-                  </div>
-
-                  <div className="mt-5 grid gap-3 md:grid-cols-4">
-                    <div className="rounded-2xl bg-slate-50 p-4">
-                      <p className="text-sm font-black text-[#45617A]">
-                        Tempo em visitas
-                      </p>
-
-                      <p className="mt-1 font-bold text-[#0F2433]">
-                        {Math.floor(roteiro.resumo.tempoTotalLocais / 60)}h{" "}
-                        {roteiro.resumo.tempoTotalLocais % 60}min
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl bg-slate-50 p-4">
-                      <p className="text-sm font-black text-[#45617A]">
-                        Deslocamento
-                      </p>
-
-                      <p className="mt-1 font-bold text-[#0F2433]">
-                        {roteiro.resumo.tempoTotalDeslocamento}min
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl bg-slate-50 p-4">
-                      <p className="text-sm font-black text-[#45617A]">
-                        Custo estimado
-                      </p>
-
-                      <p className="mt-1 font-bold text-[#0F2433]">
-                        R$ {roteiro.resumo.custo.minimo} -{" "}
-                        {roteiro.resumo.custo.maximo}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl bg-slate-50 p-4">
-                      <p className="text-sm font-black text-[#45617A]">
-                        Interesses
-                      </p>
-
-                      <p className="mt-1 font-bold text-[#0F2433]">
-                        {roteiro.interesses.join(", ")}
-                      </p>
+                      <div className="rounded-2xl bg-slate-50 p-4">
+                        <p className="font-heading text-xs font-bold text-[#45617A]">
+                          Nível
+                        </p>
+                        <p className="mt-1 font-black text-[#0F4C5C]">
+                          {roteiro.resumo?.nivel ?? "Não informado"}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="mt-5 space-y-3">
-                    {roteiro.paradas.map((parada, index) => (
+                  <div className="mt-6 space-y-3">
+                    {paradas.map((parada, index) => (
                       <div
-                        key={`${roteiro.id}-${parada.lugarId}-${index}`}
-                        className="grid gap-3 rounded-2xl border border-slate-100 p-4 md:grid-cols-[90px_1fr_140px]"
+                        key={`${parada.id ?? parada.nome}-${index}`}
+                        className="rounded-[1.5rem] bg-slate-50 p-5"
                       >
-                        <div>
-                          <p className="text-xs font-black text-[#10B981]">
-                            Parada {index + 1}
-                          </p>
+                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <span className="font-heading rounded-full bg-white px-3 py-1 text-xs font-bold text-[#0F4C5C]">
+                              Parada {index + 1} •{" "}
+                              {parada.categoria ?? "Categoria não informada"}
+                            </span>
 
-                          <p className="mt-1 text-xl font-black text-[#0F2433]">
-                            {parada.chegada}
-                          </p>
+                            <h3 className="font-heading mt-3 text-lg font-black text-[#0F2433]">
+                              {parada.nome ?? "Local sem nome"}
+                            </h3>
 
-                          <p className="text-sm text-[#45617A]">
-                            até {parada.saida}
-                          </p>
-                        </div>
-
-                        <div>
-                          {parada.deslocamentoAntes > 0 && (
-                            <p className="mb-2 w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
-                              + {parada.deslocamentoAntes} min de deslocamento
+                            <p className="mt-2 text-sm text-[#45617A]">
+                              {parada.endereco ?? "Endereço não informado"}
                             </p>
-                          )}
 
-                          <p className="w-fit rounded-full bg-[#10B981]/10 px-3 py-1 text-xs font-black text-[#0F4C5C]">
-                            {parada.categoria}
-                          </p>
+                            {(parada.avisos?.length ?? 0) > 0 && (
+                              <div className="mt-3 rounded-2xl border border-yellow-200 bg-yellow-50 p-3 text-xs font-semibold text-yellow-800">
+                                {parada.avisos?.map((aviso) => (
+                                  <p key={aviso}>• {aviso}</p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
 
-                          <h4 className="mt-2 text-lg font-black text-[#0F2433]">
-                            {parada.nome}
-                          </h4>
+                          <div className="rounded-2xl bg-white p-4 text-sm">
+                            <p className="font-heading font-black text-[#0F4C5C]">
+                              {parada.chegada ?? "--:--"} -{" "}
+                              {parada.saida ?? "--:--"}
+                            </p>
 
-                          <p className="mt-1 text-sm text-[#45617A]">
-                            {parada.cidade}
-                          </p>
-                        </div>
+                            <p className="mt-2 text-[#45617A]">
+                              Deslocamento: {parada.deslocamentoAntes ?? 0} min
+                            </p>
 
-                        <div className="rounded-2xl bg-slate-50 p-3 text-sm">
-                          <p className="font-black text-[#0F2433]">
-                            {parada.precoEstimado}
-                          </p>
-
-                          <p className="mt-1 text-[#45617A]">
-                            {parada.tempoSugeridoMin} min
-                          </p>
-
-                          <p className="mt-1 font-black text-amber-600">
-                            ★ {parada.nota}
-                          </p>
+                            <p className="mt-1 text-[#45617A]">
+                              No local: {parada.tempoSugeridoMin ?? 0} min
+                            </p>
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
+
+                  <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                    <a
+                      href={linkMaps}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-heading rounded-full bg-[#0F4C5C] px-6 py-3 text-center text-sm font-black text-white transition hover:bg-[#10B981]"
+                    >
+                      Abrir rota no Google Maps
+                    </a>
+
+                    <button
+                      onClick={() => removerRoteiro(roteiro.id)}
+                      className="font-heading rounded-full border border-red-200 bg-white px-6 py-3 text-sm font-black text-red-600 transition hover:bg-red-50"
+                    >
+                      Remover roteiro
+                    </button>
+                  </div>
                 </article>
-              ))}
-            </div>
-          )}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </section>
     </main>
   );

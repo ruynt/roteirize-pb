@@ -2,320 +2,362 @@
 
 import Header from "@/components/Header";
 import Link from "next/link";
-import { Categoria, Custo, lugares } from "@/data/lugares";
 import { useEffect, useMemo, useState } from "react";
-
-const categorias: Array<"Todas" | Categoria> = [
-  "Todas",
-  "Praia",
-  "Cultura",
-  "Gastronomia",
-  "Natureza",
-  "Experiência",
-];
-
-const custos: Array<"Todos" | Custo> = [
-  "Todos",
-  "Gratuito",
-  "Econômico",
-  "Médio",
-  "Alto",
-];
 
 const CHAVE_LUGARES_SELECIONADOS = "roteirize_lugares_selecionados";
 
+type Lugar = {
+  id: string;
+  nome: string;
+  cidade: string;
+  categoria: string;
+  descricao: string;
+  endereco: string;
+  custo: string;
+  precoEstimado: string;
+  nota: number;
+  tempoSugeridoMin: number;
+  horarioIdeal: string;
+  acessibilidade: string;
+  tags: string[];
+  distanciaCentroKm: number;
+  imagemClasse: string;
+};
+
 export default function ExplorarPage() {
-  const [categoria, setCategoria] = useState<"Todas" | Categoria>("Todas");
-  const [cidade, setCidade] = useState("Todas");
-  const [custo, setCusto] = useState<"Todos" | Custo>("Todos");
+  const [lugares, setLugares] = useState<Lugar[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState("");
+
   const [busca, setBusca] = useState("");
-  const [lugaresSelecionados, setLugaresSelecionados] = useState<number[]>([]);
+  const [categoriaSelecionada, setCategoriaSelecionada] = useState("Todas");
+  const [cidadeSelecionada, setCidadeSelecionada] = useState("Todas");
+  const [custoSelecionado, setCustoSelecionado] = useState("Todos");
+  const [lugaresSelecionados, setLugaresSelecionados] = useState<string[]>([]);
 
   useEffect(() => {
-    const lugaresSalvos = localStorage.getItem(CHAVE_LUGARES_SELECIONADOS);
+    async function buscarLugares() {
+      try {
+        setCarregando(true);
+        setErro("");
 
-    if (lugaresSalvos) {
-      setLugaresSelecionados(JSON.parse(lugaresSalvos));
+        const resposta = await fetch("/api/lugares", {
+          cache: "no-store",
+        });
+
+        if (!resposta.ok) {
+          throw new Error("Erro ao buscar lugares.");
+        }
+
+        const dados = (await resposta.json()) as Lugar[];
+        setLugares(dados);
+      } catch (error) {
+        console.error(error);
+        setErro("Não foi possível carregar os lugares.");
+      } finally {
+        setCarregando(false);
+      }
+    }
+
+    buscarLugares();
+  }, []);
+
+  useEffect(() => {
+    const selecionadosSalvos = localStorage.getItem(CHAVE_LUGARES_SELECIONADOS);
+
+    if (selecionadosSalvos) {
+      try {
+        const selecionados = JSON.parse(selecionadosSalvos) as string[];
+        setLugaresSelecionados(selecionados);
+      } catch {
+        localStorage.removeItem(CHAVE_LUGARES_SELECIONADOS);
+      }
     }
   }, []);
 
+  const categorias = useMemo(() => {
+    return [
+      "Todas",
+      ...Array.from(new Set(lugares.map((lugar) => lugar.categoria))),
+    ];
+  }, [lugares]);
+
   const cidades = useMemo(() => {
-    return ["Todas", ...Array.from(new Set(lugares.map((lugar) => lugar.cidade)))];
-  }, []);
+    return [
+      "Todas",
+      ...Array.from(new Set(lugares.map((lugar) => lugar.cidade))),
+    ];
+  }, [lugares]);
+
+  const custos = useMemo(() => {
+    return [
+      "Todos",
+      ...Array.from(new Set(lugares.map((lugar) => lugar.custo))),
+    ];
+  }, [lugares]);
 
   const lugaresFiltrados = useMemo(() => {
     return lugares.filter((lugar) => {
-      const textoBusca = busca.toLowerCase().trim();
+      const textoBusca = busca.trim().toLowerCase();
 
-      const buscaOk =
-        textoBusca === "" ||
+      const combinaBusca =
+        textoBusca.length === 0 ||
         lugar.nome.toLowerCase().includes(textoBusca) ||
         lugar.cidade.toLowerCase().includes(textoBusca) ||
-        lugar.categoria.toLowerCase().includes(textoBusca) ||
+        lugar.descricao.toLowerCase().includes(textoBusca) ||
         lugar.tags.some((tag) => tag.toLowerCase().includes(textoBusca));
 
-      const categoriaOk = categoria === "Todas" || lugar.categoria === categoria;
-      const cidadeOk = cidade === "Todas" || lugar.cidade === cidade;
-      const custoOk = custo === "Todos" || lugar.custo === custo;
+      const combinaCategoria =
+        categoriaSelecionada === "Todas" ||
+        lugar.categoria === categoriaSelecionada;
 
-      return buscaOk && categoriaOk && cidadeOk && custoOk;
+      const combinaCidade =
+        cidadeSelecionada === "Todas" || lugar.cidade === cidadeSelecionada;
+
+      const combinaCusto =
+        custoSelecionado === "Todos" || lugar.custo === custoSelecionado;
+
+      return combinaBusca && combinaCategoria && combinaCidade && combinaCusto;
     });
-  }, [categoria, cidade, custo, busca]);
+  }, [
+    busca,
+    categoriaSelecionada,
+    cidadeSelecionada,
+    custoSelecionado,
+    lugares,
+  ]);
 
-  function salvarLugaresSelecionados(novosSelecionados: number[]) {
-    setLugaresSelecionados(novosSelecionados);
+  function alternarLugarSelecionado(lugarId: string) {
+    const jaSelecionado = lugaresSelecionados.includes(lugarId);
 
-    localStorage.setItem(
-      CHAVE_LUGARES_SELECIONADOS,
-      JSON.stringify(novosSelecionados)
-    );
-  }
+    const novaLista = jaSelecionado
+      ? lugaresSelecionados.filter((id) => id !== lugarId)
+      : [...lugaresSelecionados, lugarId];
 
-  function alternarLugarSelecionado(id: number) {
-    const jaSelecionado = lugaresSelecionados.includes(id);
-
-    if (jaSelecionado) {
-      const novosSelecionados = lugaresSelecionados.filter(
-        (lugarId) => lugarId !== id
-      );
-
-      salvarLugaresSelecionados(novosSelecionados);
-      return;
-    }
-
-    salvarLugaresSelecionados([...lugaresSelecionados, id]);
+    setLugaresSelecionados(novaLista);
+    localStorage.setItem(CHAVE_LUGARES_SELECIONADOS, JSON.stringify(novaLista));
   }
 
   function limparSelecao() {
-    salvarLugaresSelecionados([]);
-  }
-
-  function limparFiltros() {
-    setCategoria("Todas");
-    setCidade("Todas");
-    setCusto("Todos");
-    setBusca("");
+    setLugaresSelecionados([]);
+    localStorage.removeItem(CHAVE_LUGARES_SELECIONADOS);
   }
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-[#F5F7F8] text-[#0F2433]">
       <Header />
 
-      <section className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-6 py-10">
-          <p className="font-heading font-black text-[#10B981]">
-            Explorar lugares
-          </p>
+      <section className="soft-grid border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-5 py-12">
+          <div className="max-w-3xl">
+            <span className="font-heading rounded-full bg-[#10B981]/10 px-4 py-2 text-sm font-bold text-[#0F4C5C]">
+              Explorar lugares
+            </span>
 
-          <h1 className="mt-2 max-w-4xl text-4xl font-black tracking-tight text-[#0F2433] md:text-5xl">
-            Encontre praias, restaurantes, pontos turísticos e experiências
-            locais.
-          </h1>
+            <h1 className="font-heading mt-6 text-4xl font-black leading-tight text-[#0F2433] md:text-6xl">
+              Descubra experiências para montar seu roteiro na Paraíba.
+            </h1>
 
-          <p className="mt-4 max-w-3xl leading-8 text-[#45617A]">
-            Use os filtros para encontrar locais compatíveis com o roteiro que
-            você quer montar. Depois, adicione os lugares desejados ao seu
-            roteiro personalizado.
-          </p>
-
-          <div className="mt-8 max-w-3xl">
-            <input
-              value={busca}
-              onChange={(event) => setBusca(event.target.value)}
-              placeholder="Buscar por praia, cultura, restaurante, cidade..."
-              className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-6 py-4 text-base outline-none transition focus:border-[#10B981] focus:bg-white"
-            />
+            <p className="mt-5 text-lg leading-8 text-[#45617A]">
+              Pesquise pontos turísticos, restaurantes, praias, espaços
+              culturais e experiências locais. Selecione os locais que você quer
+              incluir e depois gere um roteiro personalizado.
+            </p>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 py-10">
-        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-          <aside className="h-fit rounded-3xl bg-white p-5 card-shadow">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-black text-[#0F2433]">Filtros</h2>
-
-              <button
-                onClick={limparFiltros}
-                className="text-sm font-black text-[#10B981]"
-              >
-                Limpar
-              </button>
+      <section className="mx-auto max-w-7xl px-5 py-8">
+        <div className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-5 md:p-6">
+          <div className="grid gap-4 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
+            <div>
+              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+                Buscar
+              </label>
+              <input
+                value={busca}
+                onChange={(event) => setBusca(event.target.value)}
+                placeholder="Ex: praia, cultura, almoço..."
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#10B981]"
+              />
             </div>
 
-            <div className="mt-5">
-              <label className="text-sm font-black text-[#0F2433]">
+            <div>
+              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
                 Categoria
               </label>
-
               <select
-                value={categoria}
+                value={categoriaSelecionada}
                 onChange={(event) =>
-                  setCategoria(event.target.value as "Todas" | Categoria)
+                  setCategoriaSelecionada(event.target.value)
                 }
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#10B981]"
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#10B981]"
               >
-                {categorias.map((item) => (
-                  <option key={item}>{item}</option>
+                {categorias.map((categoria) => (
+                  <option key={categoria} value={categoria}>
+                    {categoria}
+                  </option>
                 ))}
               </select>
             </div>
 
-            <div className="mt-5">
-              <label className="text-sm font-black text-[#0F2433]">
+            <div>
+              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
                 Cidade
               </label>
-
               <select
-                value={cidade}
-                onChange={(event) => setCidade(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#10B981]"
+                value={cidadeSelecionada}
+                onChange={(event) => setCidadeSelecionada(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#10B981]"
               >
-                {cidades.map((item) => (
-                  <option key={item}>{item}</option>
+                {cidades.map((cidade) => (
+                  <option key={cidade} value={cidade}>
+                    {cidade}
+                  </option>
                 ))}
               </select>
             </div>
 
-            <div className="mt-5">
-              <label className="text-sm font-black text-[#0F2433]">
+            <div>
+              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
                 Custo
               </label>
-
               <select
-                value={custo}
-                onChange={(event) =>
-                  setCusto(event.target.value as "Todos" | Custo)
-                }
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#10B981]"
+                value={custoSelecionado}
+                onChange={(event) => setCustoSelecionado(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#10B981]"
               >
-                {custos.map((item) => (
-                  <option key={item}>{item}</option>
+                {custos.map((custo) => (
+                  <option key={custo} value={custo}>
+                    {custo}
+                  </option>
                 ))}
               </select>
             </div>
+          </div>
 
-            <div className="mt-6 rounded-3xl bg-[#10B981]/10 p-4">
-              <p className="text-sm font-black text-[#0F4C5C]">
-                Lugares selecionados
-              </p>
+          <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-5 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm font-semibold text-[#45617A]">
+              {lugaresSelecionados.length > 0
+                ? `${lugaresSelecionados.length} lugar(es) selecionado(s) para o roteiro.`
+                : "Nenhum lugar selecionado ainda."}
+            </p>
 
-              <p className="mt-2 text-3xl font-black text-[#0F2433]">
-                {lugaresSelecionados.length}
-              </p>
-
-              <p className="mt-2 text-sm leading-6 text-[#45617A]">
-                Esses locais serão usados na próxima etapa para montar um roteiro
-                personalizado.
-              </p>
-
+            <div className="flex flex-col gap-3 sm:flex-row">
               {lugaresSelecionados.length > 0 && (
                 <button
                   onClick={limparSelecao}
-                  className="mt-4 w-full rounded-2xl border border-[#10B981]/30 px-4 py-3 text-sm font-black text-[#0F4C5C] transition hover:bg-white"
+                  className="font-heading rounded-full border border-slate-200 px-5 py-3 text-sm font-bold text-[#45617A] transition hover:border-red-200 hover:text-red-500"
                 >
                   Limpar seleção
                 </button>
               )}
-            </div>
-          </aside>
-
-          <section>
-            <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="font-black text-[#0F2433]">
-                  {lugaresFiltrados.length} lugares encontrados
-                </p>
-
-                <p className="mt-1 text-sm text-[#45617A]">
-                  Resultado com base nos filtros selecionados.
-                </p>
-              </div>
 
               <Link
                 href="/criar-roteiro"
-                className="rounded-full bg-[#10B981] px-5 py-3 text-center text-sm font-black text-white transition hover:bg-[#0F4C5C]"
+                className="font-heading rounded-full bg-[#0F4C5C] px-5 py-3 text-center text-sm font-bold text-white transition hover:bg-[#10B981]"
               >
-                Criar roteiro com {lugaresSelecionados.length} lugares
+                Criar roteiro
               </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 pb-14">
+        {carregando && (
+          <div className="rounded-[2rem] border border-slate-100 bg-white p-8 text-center text-[#45617A]">
+            Carregando lugares do banco...
+          </div>
+        )}
+
+        {!carregando && erro && (
+          <div className="rounded-[2rem] border border-red-100 bg-red-50 p-8 text-center font-semibold text-red-600">
+            {erro}
+          </div>
+        )}
+
+        {!carregando && !erro && (
+          <>
+            <div className="mb-5 flex items-center justify-between">
+              <p className="font-heading text-sm font-bold text-[#45617A]">
+                {lugaresFiltrados.length} resultado(s) encontrado(s)
+              </p>
+
+              <p className="text-sm text-[#45617A]">
+                Dados carregados pelo Neon + Prisma
+              </p>
             </div>
 
             {lugaresFiltrados.length === 0 ? (
-              <div className="rounded-3xl bg-white p-10 text-center card-shadow">
-                <h3 className="text-2xl font-black text-[#0F2433]">
+              <div className="rounded-[2rem] border border-slate-100 bg-white p-8 text-center">
+                <h2 className="font-heading text-2xl font-black text-[#0F2433]">
                   Nenhum lugar encontrado
-                </h3>
-
+                </h2>
                 <p className="mt-2 text-[#45617A]">
-                  Tente limpar os filtros ou buscar por outro termo.
+                  Tente alterar os filtros ou buscar por outro termo.
                 </p>
               </div>
             ) : (
-              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {lugaresFiltrados.map((lugar) => {
                   const selecionado = lugaresSelecionados.includes(lugar.id);
 
                   return (
                     <article
                       key={lugar.id}
-                      className="overflow-hidden rounded-3xl bg-white card-shadow transition hover:-translate-y-1"
+                      className="card-shadow overflow-hidden rounded-[2rem] border border-slate-100 bg-white"
                     >
                       <div
-                        className={`relative h-40 bg-gradient-to-br ${lugar.imagemClasse}`}
-                      >
-                        <div className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-xs font-black text-[#0F2433] backdrop-blur">
-                          {lugar.cidade}
-                        </div>
+                        className={`h-40 bg-gradient-to-br ${lugar.imagemClasse}`}
+                      />
 
-                        <div className="absolute bottom-4 right-4 rounded-full bg-white/90 px-3 py-1 text-xs font-black text-amber-600 backdrop-blur">
-                          ★ {lugar.nota}
-                        </div>
+                      <div className="p-6">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <span className="font-heading rounded-full bg-[#10B981]/10 px-3 py-1 text-xs font-bold text-[#0F4C5C]">
+                              {lugar.categoria}
+                            </span>
 
-                        {selecionado && (
-                          <div className="absolute bottom-4 left-4 rounded-full bg-[#10B981] px-3 py-1 text-xs font-black text-white backdrop-blur">
-                            Selecionado
+                            <h2 className="font-heading mt-4 text-2xl font-black text-[#0F2433]">
+                              {lugar.nome}
+                            </h2>
+
+                            <p className="mt-1 text-sm font-semibold text-[#45617A]">
+                              {lugar.cidade}
+                            </p>
                           </div>
-                        )}
-                      </div>
 
-                      <div className="p-5">
-                        <div className="flex items-center justify-between gap-4">
-                          <p className="rounded-full bg-[#10B981]/10 px-3 py-1 text-xs font-black text-[#0F4C5C]">
-                            {lugar.categoria}
-                          </p>
-
-                          <p className="text-xs font-black text-[#45617A]">
-                            {lugar.custo}
-                          </p>
+                          <div className="rounded-2xl bg-[#F2C98A]/40 px-3 py-2 text-sm font-black text-[#0F4C5C]">
+                            ★ {lugar.nota.toFixed(1)}
+                          </div>
                         </div>
 
-                        <h2 className="mt-4 text-xl font-black text-[#0F2433]">
-                          {lugar.nome}
-                        </h2>
-
-                        <p className="mt-2 line-clamp-3 text-sm leading-6 text-[#45617A]">
+                        <p className="mt-4 line-clamp-3 text-sm leading-6 text-[#45617A]">
                           {lugar.descricao}
                         </p>
 
-                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
                           <div className="rounded-2xl bg-slate-50 p-3">
-                            <p className="font-black text-[#0F2433]">Tempo</p>
-                            <p className="text-[#45617A]">
-                              {lugar.tempoSugeridoMin} min
+                            <p className="font-heading text-xs font-bold text-[#45617A]">
+                              Custo
+                            </p>
+                            <p className="mt-1 font-bold text-[#0F2433]">
+                              {lugar.custo}
                             </p>
                           </div>
 
                           <div className="rounded-2xl bg-slate-50 p-3">
-                            <p className="font-black text-[#0F2433]">
-                              Melhor horário
+                            <p className="font-heading text-xs font-bold text-[#45617A]">
+                              Duração
                             </p>
-                            <p className="text-[#45617A]">
-                              {lugar.horarioIdeal}
+                            <p className="mt-1 font-bold text-[#0F2433]">
+                              {lugar.tempoSugeridoMin} min
                             </p>
                           </div>
                         </div>
 
-                        <div className="mt-4 flex flex-wrap gap-2">
+                        <div className="mt-5 flex flex-wrap gap-2">
                           {lugar.tags.slice(0, 3).map((tag) => (
                             <span
                               key={tag}
@@ -326,10 +368,10 @@ export default function ExplorarPage() {
                           ))}
                         </div>
 
-                        <div className="mt-5 grid grid-cols-2 gap-3">
+                        <div className="mt-6 grid gap-3 sm:grid-cols-2">
                           <Link
                             href={`/lugares/${lugar.id}`}
-                            className="rounded-2xl border border-slate-200 px-4 py-3 text-center text-sm font-black text-[#45617A] transition hover:border-[#10B981] hover:text-[#10B981]"
+                            className="font-heading rounded-full border border-slate-200 px-4 py-3 text-center text-sm font-bold text-[#0F4C5C] transition hover:border-[#10B981] hover:text-[#10B981]"
                           >
                             Ver detalhes
                           </Link>
@@ -338,11 +380,11 @@ export default function ExplorarPage() {
                             onClick={() => alternarLugarSelecionado(lugar.id)}
                             className={
                               selecionado
-                                ? "rounded-2xl bg-[#0F4C5C] px-4 py-3 text-sm font-black text-white transition hover:bg-red-600"
-                                : "rounded-2xl bg-[#10B981] px-4 py-3 text-sm font-black text-white transition hover:bg-[#0F4C5C]"
+                                ? "font-heading rounded-full bg-[#10B981] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#0F4C5C]"
+                                : "font-heading rounded-full bg-[#0F4C5C] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#10B981]"
                             }
                           >
-                            {selecionado ? "Remover" : "Adicionar"}
+                            {selecionado ? "Selecionado" : "Adicionar"}
                           </button>
                         </div>
                       </div>
@@ -351,8 +393,8 @@ export default function ExplorarPage() {
                 })}
               </div>
             )}
-          </section>
-        </div>
+          </>
+        )}
       </section>
     </main>
   );
