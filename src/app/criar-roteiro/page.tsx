@@ -2,6 +2,7 @@
 
 import Header from "@/components/Header";
 import MapaRoteiro from "@/components/MapaRoteiro";
+import ResumoRecomendacao from "@/components/ResumoRecomendacao";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -59,7 +60,7 @@ function converterMinutosParaHorario(totalMinutos: number) {
 
   return `${String(horas).padStart(2, "0")}:${String(minutos).padStart(
     2,
-    "0",
+    "0"
   )}`;
 }
 
@@ -67,7 +68,7 @@ function obterJanelaHorarioIdeal(horarioIdeal: string): JanelaHorario | null {
   const texto = horarioIdeal.toLowerCase().trim();
 
   const resultado = texto.match(
-    /(\d{1,2})h(?:(\d{2}))?\s*(?:às|as|a|-)\s*(\d{1,2})h(?:(\d{2}))?/i,
+    /(\d{1,2})h(?:(\d{2}))?\s*(?:às|as|a|-)\s*(\d{1,2})h(?:(\d{2}))?/i
   );
 
   if (!resultado) {
@@ -95,7 +96,7 @@ function obterJanelaHorarioIdeal(horarioIdeal: string): JanelaHorario | null {
 function obterAvisosHorarioIdeal(
   lugar: Lugar,
   chegadaMinutos: number,
-  saidaMinutos: number,
+  saidaMinutos: number
 ) {
   const janela = obterJanelaHorarioIdeal(lugar.horarioIdeal);
 
@@ -107,17 +108,17 @@ function obterAvisosHorarioIdeal(
 
   if (chegadaMinutos < janela.inicio) {
     avisos.push(
-      `Chegada prevista antes do horário ideal do local (${lugar.horarioIdeal}).`,
+      `Chegada prevista antes do horário ideal do local (${lugar.horarioIdeal}).`
     );
   }
 
   if (chegadaMinutos > janela.fim) {
     avisos.push(
-      `Chegada prevista depois do horário ideal do local (${lugar.horarioIdeal}).`,
+      `Chegada prevista depois do horário ideal do local (${lugar.horarioIdeal}).`
     );
   } else if (saidaMinutos > janela.fim) {
     avisos.push(
-      `A visita termina após o horário ideal do local (${lugar.horarioIdeal}).`,
+      `A visita termina após o horário ideal do local (${lugar.horarioIdeal}).`
     );
   }
 
@@ -143,7 +144,7 @@ function calcularDeslocamento(lugar: Lugar, transporte: string, ritmo: string) {
   const deslocamento = Math.round(
     basePorDistancia *
       (fatorTransporte[transporte] ?? 1) *
-      (fatorRitmo[ritmo] ?? 1),
+      (fatorRitmo[ritmo] ?? 1)
   );
 
   return Math.max(5, arredondarParaMultiplo(deslocamento, 5));
@@ -220,7 +221,7 @@ export default function CriarRoteiroPage() {
         setLugares(dados);
       } catch (error) {
         console.error(error);
-        setErro("Não foi possível carregar os lugares do banco.");
+        setErro("Não foi possível carregar os lugares disponíveis.");
       } finally {
         setCarregando(false);
       }
@@ -260,18 +261,18 @@ export default function CriarRoteiroPage() {
   const resumo = useMemo(() => {
     const totalVisitas = roteiro.reduce(
       (total, parada) => total + parada.lugar.tempoSugeridoMin,
-      0,
+      0
     );
 
     const totalDeslocamento = roteiro.reduce(
       (total, parada) => total + parada.deslocamentoAntes,
-      0,
+      0
     );
 
     const custoEstimado = roteiro.reduce(
       (total, parada) =>
         total + estimarPrecoNumerico(parada.lugar.precoEstimado),
-      0,
+      0
     );
 
     return {
@@ -351,7 +352,7 @@ export default function CriarRoteiroPage() {
           const combinaCusto = custoCabeNoOrcamento(lugar.custo, orcamento);
 
           return combinaCidade && combinaCusto;
-        },
+        }
       );
 
       if (selecionadosValidos.length > 0) {
@@ -360,7 +361,7 @@ export default function CriarRoteiroPage() {
     }
 
     const ordenados = [...candidatos].sort(
-      (a, b) => calcularPontuacao(b) - calcularPontuacao(a),
+      (a, b) => calcularPontuacao(b) - calcularPontuacao(a)
     );
 
     const paradas: ParadaRoteiro[] = [];
@@ -375,7 +376,6 @@ export default function CriarRoteiroPage() {
 
       const chegada = arredondarParaMultiplo(horarioAtual + deslocamento, 5);
       const saida = arredondarParaMultiplo(chegada + lugar.tempoSugeridoMin, 5);
-
       const tempoDaParada = deslocamento + lugar.tempoSugeridoMin;
 
       if (tempoUsado + tempoDaParada > tempoMaximoMinutos) {
@@ -397,7 +397,7 @@ export default function CriarRoteiroPage() {
     }
 
     const temGastronomia = paradas.some(
-      (parada) => parada.lugar.categoria === "Gastronomia",
+      (parada) => parada.lugar.categoria === "Gastronomia"
     );
 
     if (incluirAlmoco && !temGastronomia) {
@@ -420,15 +420,14 @@ export default function CriarRoteiroPage() {
         const deslocamento = calcularDeslocamento(
           restaurante,
           transporte,
-          ritmo,
+          ritmo
         );
 
         const chegada = arredondarParaMultiplo(horarioAtual + deslocamento, 5);
         const saida = arredondarParaMultiplo(
           chegada + restaurante.tempoSugeridoMin,
-          5,
+          5
         );
-
         const tempoDaParada = deslocamento + restaurante.tempoSugeridoMin;
 
         if (tempoUsado + tempoDaParada <= tempoMaximoMinutos) {
@@ -448,7 +447,7 @@ export default function CriarRoteiroPage() {
     if (paradas.length === 0) {
       setRoteiro([]);
       setMensagem(
-        "Não foi possível montar um roteiro com esses filtros. Tente aumentar o tempo disponível ou mudar o orçamento.",
+        "Não foi possível montar um roteiro com esses filtros. Tente aumentar o tempo disponível ou mudar o orçamento."
       );
       return;
     }
@@ -459,7 +458,7 @@ export default function CriarRoteiroPage() {
     setMensagem(
       possuiAvisos
         ? "Roteiro gerado, mas alguns locais têm avisos de horário. Confira antes de seguir."
-        : "Roteiro gerado com sucesso!",
+        : "Roteiro gerado com sucesso!"
     );
   }
 
@@ -477,7 +476,7 @@ export default function CriarRoteiroPage() {
     const novoRoteiro = {
       id: crypto.randomUUID(),
       titulo: `Roteiro em ${cidadeBase} - ${new Date().toLocaleDateString(
-        "pt-BR",
+        "pt-BR"
       )}`,
       criadoEm: new Date().toISOString(),
       parametros: {
@@ -510,7 +509,7 @@ export default function CriarRoteiroPage() {
 
     localStorage.setItem(
       CHAVE_ROTEIROS_SALVOS,
-      JSON.stringify([novoRoteiro, ...roteirosSalvos]),
+      JSON.stringify([novoRoteiro, ...roteirosSalvos])
     );
 
     setMensagem("Roteiro salvo com sucesso!");
@@ -532,10 +531,9 @@ export default function CriarRoteiroPage() {
             </h1>
 
             <p className="mt-5 text-lg leading-8 text-[#45617A]">
-              O Roteirize PB usa os lugares cadastrados no banco e organiza uma
-              sugestão de roteiro considerando cidade, orçamento, transporte,
-              ritmo, interesses, horários ideais e locais selecionados na página
-              Explorar.
+              O Roteirize PB organiza uma sugestão de passeio considerando
+              cidade, orçamento, transporte, ritmo, interesses, horários ideais
+              e locais selecionados na página Explorar.
             </p>
           </div>
         </div>
@@ -548,8 +546,7 @@ export default function CriarRoteiroPage() {
           </h2>
 
           <p className="mt-2 text-sm leading-6 text-[#45617A]">
-            Ajuste os campos abaixo para o sistema gerar uma sugestão de
-            roteiro.
+            Ajuste os campos abaixo para o sistema gerar uma sugestão de roteiro.
           </p>
 
           <div className="mt-6 space-y-5">
@@ -784,7 +781,7 @@ export default function CriarRoteiroPage() {
 
               <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[#45617A]">
                 Preencha suas preferências e clique em gerar roteiro. O sistema
-                buscará os lugares do banco e organizará uma sequência viável.
+                organizará uma sequência viável com base nas suas escolhas.
               </p>
             </div>
           ) : (
@@ -834,7 +831,8 @@ export default function CriarRoteiroPage() {
                       Roteiro sugerido
                     </h2>
                     <p className="mt-2 text-sm text-[#45617A]">
-                      Gerado com base nos dados carregados do Neon + Prisma.
+                      Sugestão organizada de acordo com suas preferências de
+                      viagem.
                     </p>
                   </div>
 
@@ -909,6 +907,16 @@ export default function CriarRoteiroPage() {
                   })}
                 </div>
               </div>
+
+              <ResumoRecomendacao
+                roteiro={roteiro}
+                cidadeBase={cidadeBase}
+                orcamento={orcamento}
+                ritmo={ritmo}
+                transporte={transporte}
+                interesses={interesses}
+                priorizarSelecionados={priorizarSelecionados}
+              />
 
               <MapaRoteiro paradas={roteiro} />
             </>

@@ -112,21 +112,18 @@ export default function AdminPage() {
   }, [filtro, solicitacoes]);
 
   const totalPendentes = solicitacoes.filter(
-    (solicitacao) => solicitacao.status === "Aguardando aprovação",
+    (solicitacao) => solicitacao.status === "Aguardando aprovação"
   ).length;
 
   const totalAprovadas = solicitacoes.filter(
-    (solicitacao) => solicitacao.status === "Aprovado",
+    (solicitacao) => solicitacao.status === "Aprovado"
   ).length;
 
   const totalRejeitadas = solicitacoes.filter(
-    (solicitacao) => solicitacao.status === "Rejeitado",
+    (solicitacao) => solicitacao.status === "Rejeitado"
   ).length;
 
-  async function atualizarSolicitacao(
-    id: string,
-    acao: "aprovar" | "rejeitar",
-  ) {
+  async function atualizarSolicitacao(id: string, acao: "aprovar" | "rejeitar") {
     try {
       setProcessandoId(id);
       setMensagem("");
@@ -153,7 +150,7 @@ export default function AdminPage() {
       setMensagem(
         acao === "aprovar"
           ? "Solicitação aprovada. O local agora aparece na página Explorar."
-          : "Solicitação rejeitada com sucesso.",
+          : "Solicitação rejeitada com sucesso."
       );
     } catch (error) {
       console.error(error);
@@ -169,9 +166,7 @@ export default function AdminPage() {
   }
 
   async function removerSolicitacao(id: string) {
-    const confirmar = confirm(
-      "Tem certeza que deseja remover esta solicitação?",
-    );
+    const confirmar = confirm("Tem certeza que deseja remover esta solicitação?");
 
     if (!confirmar) {
       return;
@@ -210,6 +205,7 @@ export default function AdminPage() {
   return (
     <main className="min-h-screen bg-[#F5F7F8] text-[#0F2433]">
       <Header />
+
       {verificandoUsuario && (
         <section className="mx-auto max-w-7xl px-5 py-10">
           <div className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-8 text-center">
@@ -233,18 +229,19 @@ export default function AdminPage() {
 
             <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[#45617A]">
               Para acessar este painel, entre usando o perfil de administrador
-              na tela de login simulado.
+              na tela de login.
             </p>
 
-            <a
+            <Link
               href="/login"
               className="font-heading mt-6 inline-flex rounded-full bg-[#0F4C5C] px-6 py-3 text-sm font-black text-white transition hover:bg-[#10B981]"
             >
               Ir para o login
-            </a>
+            </Link>
           </div>
         </section>
       )}
+
       {!verificandoUsuario && usuarioAutorizado && (
         <>
           <section className="soft-grid border-b border-slate-200 bg-white">
@@ -259,9 +256,9 @@ export default function AdminPage() {
                 </h1>
 
                 <p className="mt-5 text-lg leading-8 text-[#45617A]">
-                  Este painel consulta as solicitações cadastradas no Neon. Ao
-                  aprovar um parceiro, o sistema cria automaticamente um novo
-                  local aprovado para aparecer na página Explorar.
+                  Este painel reúne os cadastros enviados por parceiros locais.
+                  Ao aprovar uma solicitação, o local passa a aparecer na página
+                  Explorar para os turistas.
                 </p>
               </div>
             </div>
@@ -314,7 +311,8 @@ export default function AdminPage() {
                   </h2>
 
                   <p className="mt-2 text-sm text-[#45617A]">
-                    Dados carregados pelo Neon + Prisma.
+                    Acompanhe, aprove ou rejeite os cadastros enviados pelos
+                    parceiros.
                   </p>
                 </div>
 
@@ -383,7 +381,7 @@ export default function AdminPage() {
                             <div className="flex flex-wrap items-center gap-2">
                               <span
                                 className={`font-heading rounded-full px-3 py-1 text-xs font-bold ${classeStatus(
-                                  solicitacao.status,
+                                  solicitacao.status
                                 )}`}
                               >
                                 {solicitacao.status}
@@ -458,7 +456,7 @@ export default function AdminPage() {
                                   onClick={() =>
                                     atualizarSolicitacao(
                                       solicitacao.id,
-                                      "aprovar",
+                                      "aprovar"
                                     )
                                   }
                                   disabled={processando}
@@ -471,7 +469,7 @@ export default function AdminPage() {
                                   onClick={() =>
                                     atualizarSolicitacao(
                                       solicitacao.id,
-                                      "rejeitar",
+                                      "rejeitar"
                                     )
                                   }
                                   disabled={processando}
@@ -483,7 +481,9 @@ export default function AdminPage() {
                             )}
 
                             <button
-                              onClick={() => removerSolicitacao(solicitacao.id)}
+                              onClick={() =>
+                                removerSolicitacao(solicitacao.id)
+                              }
                               disabled={processando}
                               className="font-heading rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-black text-[#45617A] transition hover:border-red-200 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
                             >
