@@ -2,203 +2,226 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
-const CHAVE_USUARIO = "roteirize_usuario";
-
-type UsuarioLogado = {
-  perfil: "TOURIST" | "PARTNER" | "ADMIN";
-  perfilLabel: string;
+type Usuario = {
+  id: string;
+  name: string;
+  email: string;
+  role: "TOURIST" | "PARTNER" | "ADMIN";
 };
 
 const linksBase = [
   {
-    label: "Início",
     href: "/",
+    label: "Início",
   },
   {
-    label: "Explorar",
     href: "/explorar",
+    label: "Explorar",
   },
   {
-    label: "Criar",
     href: "/criar-roteiro",
+    label: "Criar",
   },
   {
-    label: "Roteiros",
     href: "/roteiros-salvos",
+    label: "Roteiros",
   },
   {
-    label: "Passaporte",
     href: "/passaporte",
+    label: "Passaporte",
   },
   {
-    label: "Parceiros",
     href: "/parceiro",
+    label: "Parceiros",
   },
 ];
 
+const nomesPerfis: Record<Usuario["role"], string> = {
+  TOURIST: "Turista",
+  PARTNER: "Parceiro",
+  ADMIN: "Gestão",
+};
+
 export default function Header() {
-  const pathname = usePathname();
   const router = useRouter();
+
+  const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [carregando, setCarregando] = useState(true);
   const [menuAberto, setMenuAberto] = useState(false);
-  const [usuario, setUsuario] = useState<UsuarioLogado | null>(null);
 
   useEffect(() => {
-    const usuarioSalvo = localStorage.getItem(CHAVE_USUARIO);
-
-    if (usuarioSalvo) {
+    async function buscarUsuario() {
       try {
-        setUsuario(JSON.parse(usuarioSalvo) as UsuarioLogado);
+        const resposta = await fetch("/api/auth/me", {
+          cache: "no-store",
+        });
+
+        if (!resposta.ok) {
+          setUsuario(null);
+          return;
+        }
+
+        const dados = await resposta.json();
+        setUsuario(dados.user ?? null);
       } catch {
-        localStorage.removeItem(CHAVE_USUARIO);
+        setUsuario(null);
+      } finally {
+        setCarregando(false);
       }
     }
+
+    buscarUsuario();
   }, []);
 
-  const links = useMemo(() => {
-    if (usuario?.perfil === "ADMIN") {
-      return [
-        ...linksBase,
-        {
-          label: "Admin",
-          href: "/admin",
-        },
-      ];
-    }
+  const links = [
+    ...linksBase,
+    ...(usuario?.role === "PARTNER" || usuario?.role === "ADMIN"
+      ? [
+          {
+            href: "/planos",
+            label: "Planos",
+          },
+        ]
+      : []),
+    ...(usuario?.role === "ADMIN"
+      ? [
+          {
+            href: "/admin",
+            label: "Admin",
+          },
+          {
+            href: "/secretaria",
+            label: "Gestão",
+          },
+        ]
+      : []),
+  ];
 
-    return linksBase;
-  }, [usuario]);
+  async function sair() {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+    });
 
-  function linkAtivo(href: string) {
-    if (href === "/") {
-      return pathname === "/";
-    }
-
-    return pathname.startsWith(href);
-  }
-
-  function sair() {
-    localStorage.removeItem(CHAVE_USUARIO);
     setUsuario(null);
     setMenuAberto(false);
     router.push("/");
+    router.refresh();
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-xl">
-      <div className="mx-auto max-w-7xl px-5 py-3">
-        <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3 md:grid-cols-[285px_1fr_auto]">
-          <Link href="/" className="flex items-center">
-            <div className="relative hidden h-14 w-[265px] md:block">
-              <Image
-                src="/branding/logo-header.png"
-                alt="Roteirize PB"
-                fill
-                priority
-                sizes="265px"
-                className="object-contain object-left"
-              />
-            </div>
+    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
+        <Link href="/" className="flex items-center gap-3">
+          <Image
+            src="/branding/icone-marca.png"
+            alt="Roteirize PB"
+            width={42}
+            height={42}
+            className="md:hidden"
+            priority
+          />
 
-            <div className="relative h-14 w-14 md:hidden">
-              <Image
-                src="/branding/icone-marca.png"
-                alt="Roteirize PB"
-                fill
-                priority
-                sizes="56px"
-                className="object-contain"
-              />
-            </div>
-          </Link>
+          <Image
+            src="/branding/logo-header.png"
+            alt="Roteirize PB"
+            width={168}
+            height={42}
+            className="hidden md:block"
+            priority
+          />
+        </Link>
 
-          <nav className="hidden items-center justify-center gap-7 text-sm font-semibold text-[#45617A] md:flex lg:gap-9">
-            {links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={
-                  linkAtivo(link.href)
-                    ? "font-heading whitespace-nowrap text-[#10B981]"
-                    : "font-heading whitespace-nowrap transition hover:text-[#10B981]"
-                }
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setMenuAberto((estadoAtual) => !estadoAtual)}
-              className="font-heading rounded-full border border-slate-200 px-4 py-2 text-sm font-bold text-[#0F4C5C] md:hidden"
+        <nav className="hidden items-center gap-1 lg:flex">
+          {links.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="font-heading rounded-full px-4 py-2 text-sm font-bold text-[#45617A] transition hover:bg-[#10B981]/10 hover:text-[#0F4C5C]"
             >
-              Menu
-            </button>
+              {link.label}
+            </Link>
+          ))}
+        </nav>
 
-            {usuario ? (
-              <div className="hidden items-center gap-2 md:flex">
-                <span className="font-heading rounded-full bg-[#10B981]/10 px-4 py-2 text-xs font-bold text-[#0F4C5C]">
-                  {usuario.perfilLabel}
-                </span>
+        <div className="hidden items-center gap-3 lg:flex">
+          {carregando ? (
+            <span className="h-10 w-24 animate-pulse rounded-full bg-slate-100" />
+          ) : usuario ? (
+            <>
+              <span className="font-heading rounded-full bg-[#10B981]/10 px-4 py-2 text-xs font-black text-[#0F4C5C]">
+                {nomesPerfis[usuario.role]}
+              </span>
 
-                <button
-                  onClick={sair}
-                  className="font-heading rounded-full bg-[#0F4C5C] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#10B981]"
-                >
-                  Sair
-                </button>
-              </div>
-            ) : (
-              <Link
-                href="/login"
-                className="font-heading rounded-full bg-[#0F4C5C] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#10B981] md:px-6"
-              >
-                Entrar
-              </Link>
-            )}
-          </div>
-        </div>
-
-        {menuAberto && (
-          <nav className="mt-3 grid gap-2 rounded-3xl border border-slate-100 bg-white p-3 shadow-sm md:hidden">
-            {links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setMenuAberto(false)}
-                className={
-                  linkAtivo(link.href)
-                    ? "font-heading rounded-2xl bg-[#10B981]/10 px-4 py-3 text-sm font-bold text-[#10B981]"
-                    : "font-heading rounded-2xl px-4 py-3 text-sm font-bold text-[#45617A] transition hover:bg-slate-50 hover:text-[#10B981]"
-                }
-              >
-                {link.label}
-              </Link>
-            ))}
-
-            {usuario ? (
               <button
                 onClick={sair}
-                className="font-heading rounded-2xl bg-[#0F4C5C] px-4 py-3 text-left text-sm font-bold text-white"
+                className="font-heading rounded-full border border-slate-200 px-5 py-2 text-sm font-bold text-[#0F4C5C] transition hover:border-red-200 hover:text-red-500"
               >
-                Sair da conta • {usuario.perfilLabel}
+                Sair
               </button>
-            ) : (
-              <Link
-                href="/login"
-                onClick={() => setMenuAberto(false)}
-                className="font-heading rounded-2xl bg-[#0F4C5C] px-4 py-3 text-sm font-bold text-white"
-              >
-                Entrar
-              </Link>
-            )}
-          </nav>
-        )}
+            </>
+          ) : (
+            <Link
+              href="/login"
+              className="font-heading rounded-full bg-[#0F4C5C] px-5 py-2 text-sm font-black text-white transition hover:bg-[#10B981]"
+            >
+              Entrar
+            </Link>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setMenuAberto(!menuAberto)}
+          className="font-heading rounded-full border border-slate-200 px-4 py-2 text-sm font-black text-[#0F4C5C] lg:hidden"
+        >
+          Menu
+        </button>
       </div>
+
+      {menuAberto && (
+        <div className="border-t border-slate-200 bg-white px-5 py-4 lg:hidden">
+          <div className="mx-auto flex max-w-7xl flex-col gap-2">
+            {links.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMenuAberto(false)}
+                className="font-heading rounded-2xl px-4 py-3 text-sm font-bold text-[#45617A] transition hover:bg-[#10B981]/10 hover:text-[#0F4C5C]"
+              >
+                {link.label}
+              </Link>
+            ))}
+
+            <div className="mt-3 border-t border-slate-100 pt-3">
+              {usuario ? (
+                <div className="space-y-3">
+                  <p className="font-heading rounded-2xl bg-[#10B981]/10 px-4 py-3 text-sm font-black text-[#0F4C5C]">
+                    {usuario.name} • {nomesPerfis[usuario.role]}
+                  </p>
+
+                  <button
+                    onClick={sair}
+                    className="font-heading w-full rounded-2xl border border-slate-200 px-4 py-3 text-left text-sm font-black text-[#0F4C5C]"
+                  >
+                    Sair
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={() => setMenuAberto(false)}
+                  className="font-heading block rounded-2xl bg-[#0F4C5C] px-4 py-3 text-sm font-black text-white"
+                >
+                  Entrar
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

@@ -40,18 +40,26 @@ enum PartnerRequestStatus {
   REJEITADO
 }
 
+enum SubscriptionStatus {
+  PENDENTE
+  PAGO
+  CANCELADO
+}
+
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  role      Role     @default(TOURIST)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String?
+  role         Role     @default(TOURIST)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   reviews       Review[]
   itineraries   Itinerary[]
-  partnerPlaces Place[]          @relation("PartnerPlaces")
+  partnerPlaces Place[]               @relation("PartnerPlaces")
   requests      PartnerRequest[]
+  subscriptions PartnerSubscription[]
 }
 
 model Place {
@@ -98,6 +106,21 @@ model PartnerRequest {
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id])
+}
+
+model PartnerSubscription {
+  id            String             @id @default(uuid())
+  planName      String
+  amountCents   Int
+  status        SubscriptionStatus @default(PENDENTE)
+  paymentMethod String?
+  paidAt        DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Review {

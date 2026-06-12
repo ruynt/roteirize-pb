@@ -4,6 +4,13 @@ import Header from "@/components/Header";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+type Usuario = {
+  id: string;
+  name: string;
+  email: string;
+  role: "TOURIST" | "PARTNER" | "ADMIN";
+};
+
 type SolicitacaoParceiro = {
   id: string;
   nome: string;
@@ -43,14 +50,16 @@ function formatarData(data: string) {
 }
 
 export default function AdminPage() {
+  const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [usuarioAutorizado, setUsuarioAutorizado] = useState(false);
+  const [verificandoUsuario, setVerificandoUsuario] = useState(true);
+
   const [solicitacoes, setSolicitacoes] = useState<SolicitacaoParceiro[]>([]);
   const [filtro, setFiltro] = useState("Todas");
-  const [carregando, setCarregando] = useState(true);
+  const [carregando, setCarregando] = useState(false);
   const [processandoId, setProcessandoId] = useState("");
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
-  const [usuarioAutorizado, setUsuarioAutorizado] = useState(false);
-  const [verificandoUsuario, setVerificandoUsuario] = useState(true);
 
   async function buscarSolicitacoes() {
     try {
@@ -76,31 +85,47 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    const usuarioSalvo = localStorage.getItem("roteirize_usuario");
+    async function verificarAcesso() {
+      try {
+        setVerificandoUsuario(true);
 
-    if (!usuarioSalvo) {
-      setUsuarioAutorizado(false);
-      setVerificandoUsuario(false);
-      return;
-    }
+        const resposta = await fetch("/api/auth/me", {
+          cache: "no-store",
+        });
 
-    try {
-      const usuario = JSON.parse(usuarioSalvo) as {
-        perfil?: string;
-      };
+        if (!resposta.ok) {
+          setUsuario(null);
+          setUsuarioAutorizado(false);
+          return;
+        }
 
-      if (usuario.perfil === "ADMIN") {
-        setUsuarioAutorizado(true);
-        buscarSolicitacoes();
-      } else {
+        const dados = await resposta.json();
+        const usuarioAtual = dados.user as Usuario | null;
+
+        if (!usuarioAtual) {
+          setUsuario(null);
+          setUsuarioAutorizado(false);
+          return;
+        }
+
+        setUsuario(usuarioAtual);
+
+        if (usuarioAtual.role === "ADMIN") {
+          setUsuarioAutorizado(true);
+          await buscarSolicitacoes();
+        } else {
+          setUsuarioAutorizado(false);
+        }
+      } catch (error) {
+        console.error(error);
+        setUsuario(null);
         setUsuarioAutorizado(false);
+      } finally {
+        setVerificandoUsuario(false);
       }
-    } catch {
-      localStorage.removeItem("roteirize_usuario");
-      setUsuarioAutorizado(false);
-    } finally {
-      setVerificandoUsuario(false);
     }
+
+    verificarAcesso();
   }, []);
 
   const solicitacoesFiltradas = useMemo(() => {
@@ -212,6 +237,10 @@ export default function AdminPage() {
             <h1 className="font-heading text-2xl font-black text-[#0F2433]">
               Verificando acesso...
             </h1>
+
+            <p className="mt-3 text-sm text-[#45617A]">
+              Aguarde enquanto validamos sua sessão.
+            </p>
           </div>
         </section>
       )}
@@ -224,13 +253,20 @@ export default function AdminPage() {
             </div>
 
             <h1 className="font-heading mt-5 text-3xl font-black text-[#0F2433]">
-              Acesso restrito ao administrador
+              Acesso restrito
             </h1>
 
             <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[#45617A]">
-              Para acessar este painel, entre usando o perfil de administrador
-              na tela de login.
+              Esta área é reservada para usuários autorizados da gestão da
+              plataforma.
             </p>
+
+            {usuario && usuario.role !== "ADMIN" && (
+              <p className="mx-auto mt-3 max-w-xl rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-[#45617A]">
+                Você está conectado como {usuario.name}, mas esta conta não tem
+                permissão para acessar este painel.
+              </p>
+            )}
 
             <Link
               href="/login"
@@ -260,6 +296,12 @@ export default function AdminPage() {
                   Ao aprovar uma solicitação, o local passa a aparecer na página
                   Explorar para os turistas.
                 </p>
+
+                {usuario && (
+                  <p className="mt-5 inline-flex rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-[#45617A]">
+                    Conectado como {usuario.name}
+                  </p>
+                )}
               </div>
             </div>
           </section>
@@ -359,6 +401,7 @@ export default function AdminPage() {
                   <h3 className="font-heading text-xl font-black text-[#0F2433]">
                     Nenhuma solicitação encontrada
                   </h3>
+
                   <p className="mt-2 text-sm text-[#45617A]">
                     Envie uma solicitação pela área do parceiro para testar o
                     fluxo.
