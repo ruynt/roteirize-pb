@@ -22,6 +22,10 @@ const linksBase = [
     label: "Explorar",
   },
   {
+    href: "/mapa",
+    label: "Mapa",
+  },
+  {
     href: "/criar-roteiro",
     label: "Criar",
   },
@@ -114,13 +118,18 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
-        <Link href="/" className="flex items-center gap-3">
+        <Link href="/" className="flex shrink-0 items-center gap-3">
           <Image
             src="/branding/icone-marca.png"
             alt="Roteirize PB"
             width={42}
             height={42}
             className="md:hidden"
+            style={{
+              width: "42px",
+              height: "42px",
+              objectFit: "contain",
+            }}
             priority
           />
 
@@ -130,23 +139,28 @@ export default function Header() {
             width={168}
             height={42}
             className="hidden md:block"
+            style={{
+              width: "168px",
+              height: "auto",
+              objectFit: "contain",
+            }}
             priority
           />
         </Link>
 
-        <nav className="hidden items-center gap-1 lg:flex">
+        <nav className="hidden items-center gap-1 xl:flex">
           {links.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="font-heading rounded-full px-4 py-2 text-sm font-bold text-[#45617A] transition hover:bg-[#10B981]/10 hover:text-[#0F4C5C]"
+              className="font-heading rounded-full px-3 py-2 text-sm font-bold text-[#45617A] transition hover:bg-[#10B981]/10 hover:text-[#0F4C5C]"
             >
               {link.label}
             </Link>
           ))}
         </nav>
 
-        <div className="hidden items-center gap-3 lg:flex">
+        <div className="hidden items-center gap-3 xl:flex">
           {carregando ? (
             <span className="h-10 w-24 animate-pulse rounded-full bg-slate-100" />
           ) : usuario ? (
@@ -175,14 +189,14 @@ export default function Header() {
         <button
           type="button"
           onClick={() => setMenuAberto(!menuAberto)}
-          className="font-heading rounded-full border border-slate-200 px-4 py-2 text-sm font-black text-[#0F4C5C] lg:hidden"
+          className="font-heading rounded-full border border-slate-200 px-4 py-2 text-sm font-black text-[#0F4C5C] xl:hidden"
         >
           Menu
         </button>
       </div>
 
       {menuAberto && (
-        <div className="border-t border-slate-200 bg-white px-5 py-4 lg:hidden">
+        <div className="border-t border-slate-200 bg-white px-5 py-4 xl:hidden">
           <div className="mx-auto flex max-w-7xl flex-col gap-2">
             {links.map((link) => (
               <Link

@@ -1,4 +1,5 @@
 import BotaoAdicionarLugar from "@/components/BotaoAdicionarLugar";
+import BotaoCheckin from "@/components/BotaoCheckin";
 import Header from "@/components/Header";
 import prisma from "@/lib/prisma";
 import Link from "next/link";
@@ -10,45 +11,28 @@ type LugarPageProps = {
   }>;
 };
 
-function formatarCategoria(categoria: string) {
-  const categorias: Record<string, string> = {
-    PRAIA: "Praia",
-    CULTURA: "Cultura",
-    GASTRONOMIA: "Gastronomia",
-    NATUREZA: "Natureza",
-    EXPERIENCIA: "Experiência",
-  };
+const nomesCategorias = {
+  PRAIA: "Praia",
+  CULTURA: "Cultura",
+  GASTRONOMIA: "Gastronomia",
+  NATUREZA: "Natureza",
+  EXPERIENCIA: "Experiência",
+};
 
-  return categorias[categoria] ?? categoria;
-}
+const nomesCustos = {
+  GRATUITO: "Gratuito",
+  ECONOMICO: "Econômico",
+  MEDIO: "Médio",
+  ALTO: "Alto",
+};
 
-function formatarCusto(custo: string) {
-  const custos: Record<string, string> = {
-    GRATUITO: "Gratuito",
-    ECONOMICO: "Econômico",
-    MEDIO: "Médio",
-    ALTO: "Alto",
-  };
+const nomesAcessibilidade = {
+  BAIXA: "Baixa",
+  MEDIA: "Média",
+  ALTA: "Alta",
+};
 
-  return custos[custo] ?? custo;
-}
-
-function formatarAcessibilidade(acessibilidade: string) {
-  const niveis: Record<string, string> = {
-    BAIXA: "Baixa",
-    MEDIA: "Média",
-    ALTA: "Alta",
-  };
-
-  return niveis[acessibilidade] ?? acessibilidade;
-}
-
-function montarLinkMaps(endereco: string, cidade: string) {
-  const termo = encodeURIComponent(`${endereco}, ${cidade}, Paraíba`);
-  return `https://www.google.com/maps/search/?api=1&query=${termo}`;
-}
-
-export default async function LugarDetalhesPage({ params }: LugarPageProps) {
+export default async function LugarPage({ params }: LugarPageProps) {
   const { id } = await params;
 
   const lugar = await prisma.place.findFirst({
@@ -62,75 +46,62 @@ export default async function LugarDetalhesPage({ params }: LugarPageProps) {
     notFound();
   }
 
-  const lugarFormatado = {
-    id: lugar.id,
-    nome: lugar.name,
-    cidade: lugar.city,
-    categoria: formatarCategoria(lugar.category),
-    descricao: lugar.description,
-    endereco: lugar.address,
-    custo: formatarCusto(lugar.costLevel),
-    precoEstimado: lugar.estimatedPrice,
-    nota: lugar.rating,
-    tempoSugeridoMin: lugar.suggestedDurationMin,
-    horarioIdeal: lugar.idealTime,
-    acessibilidade: formatarAcessibilidade(lugar.accessibility),
-    tags: lugar.tags,
-    distanciaCentroKm: lugar.distanceFromCenterKm,
-    imagemClasse: lugar.imageClass,
-  };
+  const categoria = nomesCategorias[lugar.category];
+  const custo = nomesCustos[lugar.costLevel];
+  const acessibilidade = nomesAcessibilidade[lugar.accessibility];
 
-  const linkMaps = montarLinkMaps(
-    lugarFormatado.endereco,
-    lugarFormatado.cidade,
+  const enderecoMaps = encodeURIComponent(
+    `${lugar.address}, ${lugar.city}, Paraíba`,
   );
+
+  const linkMaps = `https://www.google.com/maps/search/?api=1&query=${enderecoMaps}`;
 
   return (
     <main className="min-h-screen bg-[#F5F7F8] text-[#0F2433]">
       <Header />
 
-      <section
-        className={`bg-gradient-to-br ${lugarFormatado.imagemClasse} text-white`}
-      >
+      <section className={`${lugar.imageClass} text-white`}>
         <div className="mx-auto max-w-7xl px-5 py-16 md:py-20">
-          <Link
-            href="/explorar"
-            className="font-heading inline-flex rounded-full bg-white/20 px-4 py-2 text-sm font-bold text-white backdrop-blur transition hover:bg-white/30"
-          >
-            ← Voltar para explorar
-          </Link>
+          <div className="max-w-4xl">
+            <div className="flex flex-wrap gap-2">
+              <span className="font-heading rounded-full bg-white/20 px-4 py-2 text-sm font-bold text-white backdrop-blur">
+                {categoria}
+              </span>
 
-          <div className="mt-10 max-w-4xl">
-            <span className="font-heading rounded-full bg-white/20 px-4 py-2 text-sm font-bold backdrop-blur">
-              {lugarFormatado.categoria}
-            </span>
+              <span className="font-heading rounded-full bg-white/20 px-4 py-2 text-sm font-bold text-white backdrop-blur">
+                {lugar.city}
+              </span>
+
+              <span className="font-heading rounded-full bg-white/20 px-4 py-2 text-sm font-bold text-white backdrop-blur">
+                ★ {lugar.rating.toFixed(1)}
+              </span>
+            </div>
 
             <h1 className="font-heading mt-6 text-4xl font-black leading-tight md:text-6xl">
-              {lugarFormatado.nome}
+              {lugar.name}
             </h1>
 
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-white/90">
-              {lugarFormatado.descricao}
+            <p className="mt-5 max-w-3xl text-lg leading-8 text-white/90">
+              {lugar.description}
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <span className="rounded-full bg-white/20 px-4 py-2 text-sm font-bold backdrop-blur">
-                ★ {lugarFormatado.nota.toFixed(1)}
-              </span>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <BotaoAdicionarLugar lugarId={lugar.id} />
 
-              <span className="rounded-full bg-white/20 px-4 py-2 text-sm font-bold backdrop-blur">
-                {lugarFormatado.cidade}
-              </span>
-
-              <span className="rounded-full bg-white/20 px-4 py-2 text-sm font-bold backdrop-blur">
-                {lugarFormatado.custo}
-              </span>
+              <a
+                href={linkMaps}
+                target="_blank"
+                rel="noreferrer"
+                className="font-heading rounded-full border border-white/40 bg-white/10 px-6 py-3 text-center text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-[#0F4C5C]"
+              >
+                Abrir no Google Maps
+              </a>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-7xl gap-8 px-5 py-10 lg:grid-cols-[1fr_360px]">
+      <section className="mx-auto grid max-w-7xl gap-8 px-5 py-10 lg:grid-cols-[1fr_380px]">
         <div className="space-y-8">
           <section className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6 md:p-8">
             <h2 className="font-heading text-2xl font-black text-[#0F2433]">
@@ -138,16 +109,16 @@ export default async function LugarDetalhesPage({ params }: LugarPageProps) {
             </h2>
 
             <p className="mt-4 text-base leading-8 text-[#45617A]">
-              {lugarFormatado.descricao}
+              {lugar.description}
             </p>
 
             <div className="mt-6 flex flex-wrap gap-2">
-              {lugarFormatado.tags.map((tag) => (
+              {lugar.tags.map((tag) => (
                 <span
                   key={tag}
                   className="rounded-full bg-[#10B981]/10 px-3 py-2 text-xs font-bold text-[#0F4C5C]"
                 >
-                  #{tag}
+                  {tag}
                 </span>
               ))}
             </div>
@@ -160,56 +131,62 @@ export default async function LugarDetalhesPage({ params }: LugarPageProps) {
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <div className="rounded-3xl bg-slate-50 p-5">
-                <p className="font-heading text-sm font-bold text-[#45617A]">
+                <p className="font-heading text-sm font-black text-[#0F4C5C]">
                   Endereço
                 </p>
-                <p className="mt-2 font-bold text-[#0F2433]">
-                  {lugarFormatado.endereco}
+
+                <p className="mt-2 text-sm leading-6 text-[#45617A]">
+                  {lugar.address}
                 </p>
               </div>
 
               <div className="rounded-3xl bg-slate-50 p-5">
-                <p className="font-heading text-sm font-bold text-[#45617A]">
-                  Melhor horário
+                <p className="font-heading text-sm font-black text-[#0F4C5C]">
+                  Cidade
                 </p>
-                <p className="mt-2 font-bold text-[#0F2433]">
-                  {lugarFormatado.horarioIdeal}
+
+                <p className="mt-2 text-sm leading-6 text-[#45617A]">
+                  {lugar.city}
                 </p>
               </div>
 
               <div className="rounded-3xl bg-slate-50 p-5">
-                <p className="font-heading text-sm font-bold text-[#45617A]">
-                  Duração sugerida
+                <p className="font-heading text-sm font-black text-[#0F4C5C]">
+                  Horário ideal
                 </p>
-                <p className="mt-2 font-bold text-[#0F2433]">
-                  {lugarFormatado.tempoSugeridoMin} minutos
+
+                <p className="mt-2 text-sm leading-6 text-[#45617A]">
+                  {lugar.idealTime}
                 </p>
               </div>
 
               <div className="rounded-3xl bg-slate-50 p-5">
-                <p className="font-heading text-sm font-bold text-[#45617A]">
-                  Faixa de preço
+                <p className="font-heading text-sm font-black text-[#0F4C5C]">
+                  Tempo sugerido
                 </p>
-                <p className="mt-2 font-bold text-[#0F2433]">
-                  {lugarFormatado.precoEstimado}
+
+                <p className="mt-2 text-sm leading-6 text-[#45617A]">
+                  {lugar.suggestedDurationMin} minutos
                 </p>
               </div>
 
               <div className="rounded-3xl bg-slate-50 p-5">
-                <p className="font-heading text-sm font-bold text-[#45617A]">
+                <p className="font-heading text-sm font-black text-[#0F4C5C]">
+                  Faixa de custo
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-[#45617A]">
+                  {custo} • {lugar.estimatedPrice}
+                </p>
+              </div>
+
+              <div className="rounded-3xl bg-slate-50 p-5">
+                <p className="font-heading text-sm font-black text-[#0F4C5C]">
                   Acessibilidade
                 </p>
-                <p className="mt-2 font-bold text-[#0F2433]">
-                  {lugarFormatado.acessibilidade}
-                </p>
-              </div>
 
-              <div className="rounded-3xl bg-slate-50 p-5">
-                <p className="font-heading text-sm font-bold text-[#45617A]">
-                  Distância aproximada do centro
-                </p>
-                <p className="mt-2 font-bold text-[#0F2433]">
-                  {lugarFormatado.distanciaCentroKm} km
+                <p className="mt-2 text-sm leading-6 text-[#45617A]">
+                  {acessibilidade}
                 </p>
               </div>
             </div>
@@ -217,60 +194,96 @@ export default async function LugarDetalhesPage({ params }: LugarPageProps) {
 
           <section className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6 md:p-8">
             <h2 className="font-heading text-2xl font-black text-[#0F2433]">
-              Avaliações simuladas
+              Avaliações da comunidade
             </h2>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <article className="rounded-3xl bg-slate-50 p-5">
-                <p className="font-heading font-black text-[#0F4C5C]">★★★★★</p>
-                <p className="mt-3 text-sm leading-6 text-[#45617A]">
-                  Local muito interessante para incluir em um roteiro pela
-                  Paraíba. As informações de horário e duração ajudam bastante
-                  no planejamento.
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <div className="rounded-3xl bg-slate-50 p-5">
+                <p className="font-heading text-4xl font-black text-[#0F4C5C]">
+                  ★ {lugar.rating.toFixed(1)}
                 </p>
-              </article>
 
-              <article className="rounded-3xl bg-slate-50 p-5">
-                <p className="font-heading font-black text-[#0F4C5C]">★★★★☆</p>
-                <p className="mt-3 text-sm leading-6 text-[#45617A]">
-                  Boa opção para turistas que querem conhecer experiências
-                  locais com mais organização e previsibilidade.
+                <p className="mt-2 text-sm text-[#45617A]">
+                  Média de avaliação do local.
                 </p>
-              </article>
+              </div>
+
+              <div className="rounded-3xl bg-slate-50 p-5 md:col-span-2">
+                <p className="font-heading text-sm font-black text-[#0F4C5C]">
+                  Comentário em destaque
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-[#45617A]">
+                  “Experiência muito boa para conhecer melhor a Paraíba e montar
+                  um roteiro mais organizado.”
+                </p>
+              </div>
             </div>
           </section>
         </div>
 
-        <aside className="card-shadow h-fit rounded-[2rem] border border-slate-100 bg-white p-6">
-          <h2 className="font-heading text-2xl font-black text-[#0F2433]">
-            Adicionar ao roteiro
-          </h2>
+        <aside className="space-y-6">
+          <BotaoCheckin
+            lugar={{
+              id: lugar.id,
+              nome: lugar.name,
+              cidade: lugar.city,
+              categoria,
+            }}
+          />
 
-          <p className="mt-3 text-sm leading-6 text-[#45617A]">
-            Salve este local na sua seleção e gere um roteiro personalizado com
-            base no seu tempo, orçamento, transporte e interesses.
-          </p>
+          <section className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6">
+            <h2 className="font-heading text-2xl font-black text-[#0F2433]">
+              Adicionar ao roteiro
+            </h2>
 
-          <BotaoAdicionarLugar lugarId={lugarFormatado.id} />
-
-          <a
-            href={linkMaps}
-            target="_blank"
-            rel="noreferrer"
-            className="font-heading mt-3 block rounded-2xl border border-slate-200 px-5 py-4 text-center font-black text-[#0F4C5C] transition hover:border-[#10B981] hover:text-[#10B981]"
-          >
-            Abrir rota no Google Maps
-          </a>
-
-          <div className="mt-6 rounded-3xl bg-[#F2C98A]/35 p-5">
-            <p className="font-heading text-sm font-black text-[#0F4C5C]">
-              Dados vindos do banco
+            <p className="mt-3 text-sm leading-6 text-[#45617A]">
+              Salve este local na sua seleção e use-o na criação de um roteiro
+              personalizado.
             </p>
-            <p className="mt-2 text-xs leading-5 text-[#45617A]">
-              Esta página consulta o Neon usando Prisma, o que ajuda a mostrar
-              que o projeto já possui persistência real de dados.
+
+            <div className="mt-5">
+              <BotaoAdicionarLugar lugarId={lugar.id} />
+            </div>
+          </section>
+
+          <section className="rounded-[2rem] border border-slate-100 bg-white p-6">
+            <h3 className="font-heading text-xl font-black text-[#0F2433]">
+              Explore no mapa
+            </h3>
+
+            <p className="mt-3 text-sm leading-6 text-[#45617A]">
+              Abra a localização em uma nova aba para planejar melhor seu
+              deslocamento.
             </p>
-          </div>
+
+            <a
+              href={linkMaps}
+              target="_blank"
+              rel="noreferrer"
+              className="font-heading mt-5 inline-flex w-full justify-center rounded-full bg-[#0F4C5C] px-5 py-3 text-sm font-black text-white transition hover:bg-[#10B981]"
+            >
+              Abrir rota
+            </a>
+          </section>
+
+          <section className="rounded-[2rem] border border-[#F2C98A]/50 bg-[#F2C98A]/25 p-6">
+            <h3 className="font-heading text-xl font-black text-[#0F4C5C]">
+              Passaporte Digital
+            </h3>
+
+            <p className="mt-3 text-sm leading-6 text-[#45617A]">
+              Faça check-in em diferentes localidades para desbloquear selos e
+              acompanhar sua evolução como explorador da Paraíba.
+            </p>
+
+            <Link
+              href="/passaporte"
+              className="font-heading mt-5 inline-flex w-full justify-center rounded-full border border-[#0F4C5C]/20 bg-white px-5 py-3 text-sm font-black text-[#0F4C5C] transition hover:border-[#10B981] hover:text-[#10B981]"
+            >
+              Ver passaporte
+            </Link>
+          </section>
         </aside>
       </section>
     </main>
