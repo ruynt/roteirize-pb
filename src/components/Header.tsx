@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Usuario = {
   id: string;
@@ -49,38 +49,11 @@ const nomesPerfis: Record<Usuario["role"], string> = {
   ADMIN: "Gestão",
 };
 
-export default function Header() {
-  const router = useRouter();
+let usuarioHeaderCache: Usuario | null = null;
+let usuarioHeaderJaBuscado = false;
 
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [carregando, setCarregando] = useState(true);
-  const [menuAberto, setMenuAberto] = useState(false);
-
-  useEffect(() => {
-    async function buscarUsuario() {
-      try {
-        const resposta = await fetch("/api/auth/me", {
-          cache: "no-store",
-        });
-
-        if (!resposta.ok) {
-          setUsuario(null);
-          return;
-        }
-
-        const dados = await resposta.json();
-        setUsuario(dados.user ?? null);
-      } catch {
-        setUsuario(null);
-      } finally {
-        setCarregando(false);
-      }
-    }
-
-    buscarUsuario();
-  }, []);
-
-  const links = [
+function obterLinks(usuario: Usuario | null) {
+  return [
     ...linksBase,
     ...(usuario?.role === "PARTNER" || usuario?.role === "ADMIN"
       ? [
@@ -103,11 +76,72 @@ export default function Header() {
         ]
       : []),
   ];
+}
+
+export default function Header() {
+  const router = useRouter();
+
+  const [usuario, setUsuario] = useState<Usuario | null>(usuarioHeaderCache);
+  const [carregando, setCarregando] = useState(!usuarioHeaderJaBuscado);
+  const [menuAberto, setMenuAberto] = useState(false);
+
+  const links = useMemo(() => obterLinks(usuario), [usuario]);
+
+  useEffect(() => {
+    let componenteAtivo = true;
+
+    async function buscarUsuario() {
+      try {
+        const resposta = await fetch("/api/auth/me", {
+          cache: "no-store",
+        });
+
+        if (!componenteAtivo) {
+          return;
+        }
+
+        if (!resposta.ok) {
+          usuarioHeaderCache = null;
+          usuarioHeaderJaBuscado = true;
+          setUsuario(null);
+          return;
+        }
+
+        const dados = await resposta.json();
+        const usuarioAtual = dados.user ?? null;
+
+        usuarioHeaderCache = usuarioAtual;
+        usuarioHeaderJaBuscado = true;
+        setUsuario(usuarioAtual);
+      } catch {
+        if (!componenteAtivo) {
+          return;
+        }
+
+        usuarioHeaderCache = null;
+        usuarioHeaderJaBuscado = true;
+        setUsuario(null);
+      } finally {
+        if (componenteAtivo) {
+          setCarregando(false);
+        }
+      }
+    }
+
+    buscarUsuario();
+
+    return () => {
+      componenteAtivo = false;
+    };
+  }, []);
 
   async function sair() {
     await fetch("/api/auth/logout", {
       method: "POST",
     });
+
+    usuarioHeaderCache = null;
+    usuarioHeaderJaBuscado = true;
 
     setUsuario(null);
     setMenuAberto(false);
@@ -161,7 +195,7 @@ export default function Header() {
         </nav>
 
         <div className="hidden items-center gap-3 xl:flex">
-          {carregando ? (
+          {carregando && !usuario ? (
             <span className="h-10 w-24 animate-pulse rounded-full bg-slate-100" />
           ) : usuario ? (
             <>
@@ -170,6 +204,7 @@ export default function Header() {
               </span>
 
               <button
+                type="button"
                 onClick={sair}
                 className="font-heading rounded-full border border-slate-200 px-5 py-2 text-sm font-bold text-[#0F4C5C] transition hover:border-red-200 hover:text-red-500"
               >
@@ -210,13 +245,16 @@ export default function Header() {
             ))}
 
             <div className="mt-3 border-t border-slate-100 pt-3">
-              {usuario ? (
+              {carregando && !usuario ? (
+                <span className="block h-12 animate-pulse rounded-2xl bg-slate-100" />
+              ) : usuario ? (
                 <div className="space-y-3">
                   <p className="font-heading rounded-2xl bg-[#10B981]/10 px-4 py-3 text-sm font-black text-[#0F4C5C]">
                     {usuario.name} • {nomesPerfis[usuario.role]}
                   </p>
 
                   <button
+                    type="button"
                     onClick={sair}
                     className="font-heading w-full rounded-2xl border border-slate-200 px-4 py-3 text-left text-sm font-black text-[#0F4C5C]"
                   >

@@ -1,18 +1,20 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
+import { AccessibilityLevel } from "@/generated/prisma";
 
-function normalizarAcessibilidade(valor: string) {
+function normalizarAcessibilidade(valor: string): AccessibilityLevel {
   const texto = valor?.toLowerCase();
 
   if (texto === "baixa") {
-    return "BAIXA";
+    return AccessibilityLevel.BAIXA;
   }
 
   if (texto === "alta") {
-    return "ALTA";
+    return AccessibilityLevel.ALTA;
   }
 
-  return "MEDIA";
+  return AccessibilityLevel.MEDIA;
 }
 
 function formatarAcessibilidade(valor: string) {
@@ -38,6 +40,16 @@ function formatarStatus(valor: string) {
 export async function GET() {
   try {
     const solicitacoes = await prisma.partnerRequest.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
       orderBy: {
         createdAt: "desc",
       },
@@ -57,6 +69,9 @@ export async function GET() {
       status: formatarStatus(solicitacao.status),
       statusOriginal: solicitacao.status,
       criadoEm: solicitacao.createdAt,
+      parceiroId: solicitacao.userId,
+      parceiroNome: solicitacao.user?.name ?? null,
+      parceiroEmail: solicitacao.user?.email ?? null,
     }));
 
     return NextResponse.json(solicitacoesFormatadas);
@@ -69,13 +84,14 @@ export async function GET() {
       },
       {
         status: 500,
-      },
+      }
     );
   }
 }
 
 export async function POST(request: Request) {
   try {
+    const usuario = await getCurrentUser();
     const body = await request.json();
 
     const nome = String(body.nome ?? "").trim();
@@ -96,9 +112,12 @@ export async function POST(request: Request) {
         },
         {
           status: 400,
-        },
+        }
       );
     }
+
+    const podeVincularParceiro =
+      usuario?.role === "PARTNER" || usuario?.role === "ADMIN";
 
     const solicitacao = await prisma.partnerRequest.create({
       data: {
@@ -112,6 +131,17 @@ export async function POST(request: Request) {
         contact: contato || null,
         accessibility: normalizarAcessibilidade(acessibilidade),
         status: "AGUARDANDO_APROVACAO",
+        userId: podeVincularParceiro ? usuario.id : null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
       },
     });
 
@@ -130,10 +160,13 @@ export async function POST(request: Request) {
         status: formatarStatus(solicitacao.status),
         statusOriginal: solicitacao.status,
         criadoEm: solicitacao.createdAt,
+        parceiroId: solicitacao.userId,
+        parceiroNome: solicitacao.user?.name ?? null,
+        parceiroEmail: solicitacao.user?.email ?? null,
       },
       {
         status: 201,
-      },
+      }
     );
   } catch (error) {
     console.error("Erro ao criar solicitação:", error);
@@ -144,7 +177,7 @@ export async function POST(request: Request) {
       },
       {
         status: 500,
-      },
+      }
     );
   }
 }

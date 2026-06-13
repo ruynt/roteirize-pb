@@ -24,6 +24,8 @@ type Lugar = {
   tags: string[];
   distanciaCentroKm: number;
   imagemClasse: string;
+  destaque?: boolean;
+  parceiroNome?: string | null;
 };
 
 type Checkin = {
@@ -110,6 +112,20 @@ function textoQuantidade(valor: number, singular: string, plural: string) {
   return valor === 1 ? `${valor} ${singular}` : `${valor} ${plural}`;
 }
 
+function classeImagem(imagemClasse?: string) {
+  const classe = String(imagemClasse ?? "").trim();
+
+  if (!classe) {
+    return "bg-gradient-to-br from-cyan-300 to-blue-500";
+  }
+
+  if (classe.includes("bg-")) {
+    return classe;
+  }
+
+  return `bg-gradient-to-br ${classe}`;
+}
+
 export default function ExplorarPage() {
   const [lugares, setLugares] = useState<Lugar[]>([]);
   const [lugaresSelecionados, setLugaresSelecionados] = useState<string[]>([]);
@@ -152,7 +168,7 @@ export default function ExplorarPage() {
 
   useEffect(() => {
     setLugaresSelecionados(
-      carregarLista<string>(CHAVE_LUGARES_SELECIONADOS).map(String),
+      carregarLista<string>(CHAVE_LUGARES_SELECIONADOS).map(String)
     );
 
     setCheckins(carregarLista<Checkin>(CHAVE_CHECKINS));
@@ -167,17 +183,11 @@ export default function ExplorarPage() {
   }, [lugares]);
 
   const cidades = useMemo(() => {
-    return [
-      "Todas",
-      ...Array.from(new Set(lugares.map((lugar) => lugar.cidade))),
-    ];
+    return ["Todas", ...Array.from(new Set(lugares.map((lugar) => lugar.cidade)))];
   }, [lugares]);
 
   const custos = useMemo(() => {
-    return [
-      "Todos",
-      ...Array.from(new Set(lugares.map((lugar) => lugar.custo))),
-    ];
+    return ["Todos", ...Array.from(new Set(lugares.map((lugar) => lugar.custo)))];
   }, [lugares]);
 
   const perfilUsuario = useMemo(() => {
@@ -218,15 +228,15 @@ export default function ExplorarPage() {
     });
 
     const categoriasPreferidas = ordenarPreferencias(
-      contarOcorrencias([...categoriasCheckins, ...categoriasRoteiros]),
+      contarOcorrencias([...categoriasCheckins, ...categoriasRoteiros])
     );
 
     const cidadesPreferidas = ordenarPreferencias(
-      contarOcorrencias([...cidadesCheckins, ...cidadesRoteiros]),
+      contarOcorrencias([...cidadesCheckins, ...cidadesRoteiros])
     );
 
     const custosPreferidos = ordenarPreferencias(
-      contarOcorrencias(custosRoteiros),
+      contarOcorrencias(custosRoteiros)
     );
 
     return {
@@ -254,9 +264,13 @@ export default function ExplorarPage() {
         let pontuacao = lugar.nota * 10;
         const motivos: string[] = [];
 
+        if (lugar.destaque) {
+          pontuacao += 8;
+        }
+
         if (perfilUsuario.categoriasPreferidas.includes(lugar.categoria)) {
           const posicao = perfilUsuario.categoriasPreferidas.indexOf(
-            lugar.categoria,
+            lugar.categoria
           );
 
           pontuacao += Math.max(35 - posicao * 5, 15);
@@ -268,7 +282,7 @@ export default function ExplorarPage() {
 
           pontuacao += Math.max(25 - posicao * 4, 10);
           motivos.push(
-            `está em ${lugar.cidade}, cidade presente no seu histórico`,
+            `está em ${lugar.cidade}, cidade presente no seu histórico`
           );
         }
 
@@ -317,6 +331,10 @@ export default function ExplorarPage() {
     return limitarLista(recomendacoesCalculadas, 3);
   }, [checkins, lugares, lugaresSelecionados, perfilUsuario]);
 
+  const totalDestaques = useMemo(() => {
+    return lugares.filter((lugar) => lugar.destaque).length;
+  }, [lugares]);
+
   const lugaresFiltrados = useMemo(() => {
     const textoBusca = busca.trim().toLowerCase();
 
@@ -341,13 +359,7 @@ export default function ExplorarPage() {
 
       return combinaBusca && combinaCategoria && combinaCidade && combinaCusto;
     });
-  }, [
-    busca,
-    categoriaSelecionada,
-    cidadeSelecionada,
-    custoSelecionado,
-    lugares,
-  ]);
+  }, [busca, categoriaSelecionada, cidadeSelecionada, custoSelecionado, lugares]);
 
   function alternarLugarSelecionado(lugarId: string) {
     const jaSelecionado = lugaresSelecionados.includes(lugarId);
@@ -452,7 +464,7 @@ export default function ExplorarPage() {
                 : `${textoQuantidade(
                     lugaresFiltrados.length,
                     "local encontrado",
-                    "locais encontrados",
+                    "locais encontrados"
                   )}.`}
             </p>
 
@@ -460,9 +472,17 @@ export default function ExplorarPage() {
               {textoQuantidade(
                 lugaresSelecionados.length,
                 "local selecionado",
-                "locais selecionados",
+                "locais selecionados"
               )}{" "}
-              para montar seu roteiro.
+              para montar seu roteiro
+              {totalDestaques > 0
+                ? ` • ${textoQuantidade(
+                    totalDestaques,
+                    "destaque ativo",
+                    "destaques ativos"
+                  )}`
+                : ""}
+              .
             </p>
           </div>
         </div>
@@ -478,7 +498,7 @@ export default function ExplorarPage() {
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
                 <span className="font-heading rounded-full bg-[#10B981]/10 px-4 py-2 text-xs font-black text-[#0F4C5C]">
-                  Recomendação personalizada
+                  Recomendações personalizadas
                 </span>
 
                 <h2 className="font-heading mt-4 text-2xl font-black text-[#0F2433]">
@@ -486,9 +506,9 @@ export default function ExplorarPage() {
                 </h2>
 
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-[#45617A]">
-                  O sistema analisa seus check-ins, roteiros salvos, cidades e
-                  categorias mais frequentes para sugerir locais com maior
-                  afinidade com seu perfil de exploração.
+                  As sugestões consideram seus check-ins, roteiros salvos,
+                  cidades e categorias mais frequentes para aproximar os locais
+                  do seu perfil de viagem.
                 </p>
               </div>
 
@@ -502,11 +522,11 @@ export default function ExplorarPage() {
                     ? `${textoQuantidade(
                         perfilUsuario.totalCheckins,
                         "check-in",
-                        "check-ins",
+                        "check-ins"
                       )} e ${textoQuantidade(
                         perfilUsuario.totalRoteiros,
                         "roteiro salvo",
-                        "roteiros salvos",
+                        "roteiros salvos"
                       )}.`
                     : "Perfil inicial baseado em locais bem avaliados."}
                 </p>
@@ -516,21 +536,31 @@ export default function ExplorarPage() {
             <div className="mt-6 grid gap-5 lg:grid-cols-3">
               {recomendacoes.map((recomendacao) => {
                 const selecionado = lugaresSelecionados.includes(
-                  recomendacao.lugar.id,
+                  recomendacao.lugar.id
                 );
 
                 return (
                   <article
                     key={recomendacao.lugar.id}
-                    className="overflow-hidden rounded-[1.5rem] border border-slate-100 bg-slate-50"
+                    className={
+                      recomendacao.lugar.destaque
+                        ? "overflow-hidden rounded-[1.5rem] border border-[#F2C98A] bg-white"
+                        : "overflow-hidden rounded-[1.5rem] border border-slate-100 bg-slate-50"
+                    }
                   >
                     <div
-                      className={`${recomendacao.lugar.imagemClasse} h-32 text-white`}
+                      className={`${classeImagem(recomendacao.lugar.imagemClasse)} h-32 text-white`}
                     >
-                      <div className="flex h-full items-end p-4">
+                      <div className="flex h-full items-start justify-between gap-3 p-4">
                         <span className="font-heading rounded-full bg-white/20 px-3 py-1 text-xs font-bold text-white backdrop-blur">
                           {recomendacao.lugar.categoria}
                         </span>
+
+                        {recomendacao.lugar.destaque && (
+                          <span className="font-heading rounded-full bg-[#F2C98A] px-3 py-1 text-xs font-black text-[#0F4C5C] shadow-sm">
+                            Destaque
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -617,21 +647,29 @@ export default function ExplorarPage() {
           <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {lugaresFiltrados.map((lugar) => {
               const selecionado = lugaresSelecionados.includes(lugar.id);
-              const visitado = checkins.some(
-                (checkin) => checkin.id === lugar.id,
-              );
+              const visitado = checkins.some((checkin) => checkin.id === lugar.id);
 
               return (
                 <article
                   key={lugar.id}
-                  className="card-shadow overflow-hidden rounded-[2rem] border border-slate-100 bg-white"
+                  className={
+                    lugar.destaque
+                      ? "card-shadow overflow-hidden rounded-[2rem] border border-[#F2C98A] bg-white"
+                      : "card-shadow overflow-hidden rounded-[2rem] border border-slate-100 bg-white"
+                  }
                 >
-                  <div className={`${lugar.imagemClasse} h-44 text-white`}>
+                  <div className={`${classeImagem(lugar.imagemClasse)} h-44 text-white`}>
                     <div className="flex h-full flex-col justify-between p-5">
                       <div className="flex flex-wrap gap-2">
                         <span className="font-heading rounded-full bg-white/20 px-3 py-1 text-xs font-bold text-white backdrop-blur">
                           {lugar.categoria}
                         </span>
+
+                        {lugar.destaque && (
+                          <span className="font-heading rounded-full bg-[#F2C98A] px-3 py-1 text-xs font-black text-[#0F4C5C] shadow-sm">
+                            Destaque
+                          </span>
+                        )}
 
                         {visitado && (
                           <span className="font-heading rounded-full bg-[#10B981] px-3 py-1 text-xs font-bold text-white">
@@ -745,7 +783,7 @@ export default function ExplorarPage() {
                   {textoQuantidade(
                     lugaresSelecionados.length,
                     "local selecionado",
-                    "locais selecionados",
+                    "locais selecionados"
                   )}
                 </p>
 

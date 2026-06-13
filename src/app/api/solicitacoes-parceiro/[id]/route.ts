@@ -1,63 +1,64 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { CostLevel, PlaceCategory } from "@/generated/prisma";
 
-function mapearTipoParaCategoria(tipo: string) {
+function mapearTipoParaCategoria(tipo: string): PlaceCategory {
   const texto = tipo.toLowerCase();
 
   if (texto.includes("restaurante")) {
-    return "GASTRONOMIA";
+    return PlaceCategory.GASTRONOMIA;
   }
 
   if (texto.includes("guia")) {
-    return "EXPERIENCIA";
+    return PlaceCategory.EXPERIENCIA;
   }
 
   if (texto.includes("artesanato")) {
-    return "EXPERIENCIA";
+    return PlaceCategory.EXPERIENCIA;
   }
 
   if (texto.includes("experiência") || texto.includes("experiencia")) {
-    return "EXPERIENCIA";
+    return PlaceCategory.EXPERIENCIA;
   }
 
   if (texto.includes("ponto turístico") || texto.includes("ponto turistico")) {
-    return "CULTURA";
+    return PlaceCategory.CULTURA;
   }
 
-  return "EXPERIENCIA";
+  return PlaceCategory.EXPERIENCIA;
 }
 
-function estimarCustoPeloPreco(preco?: string | null) {
+function estimarCustoPeloPreco(preco?: string | null): CostLevel {
   if (!preco) {
-    return "MEDIO";
+    return CostLevel.MEDIO;
   }
 
   const valores = preco.match(/\d+/g)?.map(Number) ?? [];
 
   if (valores.length === 0) {
-    return "MEDIO";
+    return CostLevel.MEDIO;
   }
 
   const media =
     valores.reduce((total, valor) => total + valor, 0) / valores.length;
 
   if (media === 0) {
-    return "GRATUITO";
+    return CostLevel.GRATUITO;
   }
 
   if (media <= 40) {
-    return "ECONOMICO";
+    return CostLevel.ECONOMICO;
   }
 
   if (media <= 100) {
-    return "MEDIO";
+    return CostLevel.MEDIO;
   }
 
-  return "ALTO";
+  return CostLevel.ALTO;
 }
 
-function imagemPorCategoria(categoria: string) {
-  const imagens: Record<string, string> = {
+function imagemPorCategoria(categoria: PlaceCategory) {
+  const imagens: Record<PlaceCategory, string> = {
     PRAIA: "from-cyan-300 to-blue-500",
     CULTURA: "from-amber-300 to-orange-500",
     GASTRONOMIA: "from-orange-300 to-red-500",
@@ -86,7 +87,7 @@ function formatarStatus(valor: string) {
 
 export async function PATCH(
   request: Request,
-  context: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await context.params;
@@ -107,7 +108,7 @@ export async function PATCH(
         },
         {
           status: 404,
-        },
+        }
       );
     }
 
@@ -150,6 +151,7 @@ export async function PATCH(
             distanceFromCenterKm: 5,
             imageClass: imagemPorCategoria(categoria),
             approved: true,
+            partnerId: solicitacao.userId,
           },
         });
       }
@@ -176,7 +178,7 @@ export async function PATCH(
       },
       {
         status: 400,
-      },
+      }
     );
   } catch (error) {
     console.error("Erro ao atualizar solicitação:", error);
@@ -187,14 +189,14 @@ export async function PATCH(
       },
       {
         status: 500,
-      },
+      }
     );
   }
 }
 
 export async function DELETE(
   _request: Request,
-  context: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await context.params;
@@ -217,7 +219,7 @@ export async function DELETE(
       },
       {
         status: 500,
-      },
+      }
     );
   }
 }
