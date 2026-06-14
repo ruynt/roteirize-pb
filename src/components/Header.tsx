@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 type Usuario = {
@@ -78,14 +78,43 @@ function obterLinks(usuario: Usuario | null) {
   ];
 }
 
+function linkEstaAtivo(href: string, pathname: string) {
+  if (href === "/") {
+    return pathname === "/";
+  }
+
+  if (href === "/explorar" && pathname.startsWith("/lugares")) {
+    return true;
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function classeLink(ativo: boolean) {
+  return ativo
+    ? "font-heading rounded-full bg-[#10B981]/10 px-3 py-2 text-sm font-black text-[#0F4C5C]"
+    : "font-heading rounded-full px-3 py-2 text-sm font-bold text-[#45617A] transition hover:bg-[#10B981]/10 hover:text-[#0F4C5C]";
+}
+
+function classeLinkMobile(ativo: boolean) {
+  return ativo
+    ? "font-heading rounded-2xl bg-[#10B981]/10 px-4 py-3 text-sm font-black text-[#0F4C5C]"
+    : "font-heading rounded-2xl px-4 py-3 text-sm font-bold text-[#45617A] transition hover:bg-[#10B981]/10 hover:text-[#0F4C5C]";
+}
+
 export default function Header() {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [usuario, setUsuario] = useState<Usuario | null>(usuarioHeaderCache);
   const [carregando, setCarregando] = useState(!usuarioHeaderJaBuscado);
   const [menuAberto, setMenuAberto] = useState(false);
 
   const links = useMemo(() => obterLinks(usuario), [usuario]);
+
+  useEffect(() => {
+    setMenuAberto(false);
+  }, [pathname]);
 
   useEffect(() => {
     let componenteAtivo = true;
@@ -152,7 +181,11 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
-        <Link href="/" className="flex shrink-0 items-center gap-3">
+        <Link
+          href="/"
+          aria-label="Ir para a página inicial"
+          className="flex shrink-0 items-center gap-3"
+        >
           <Image
             src="/branding/icone-marca.png"
             alt="Roteirize PB"
@@ -183,15 +216,20 @@ export default function Header() {
         </Link>
 
         <nav className="hidden items-center gap-1 xl:flex">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="font-heading rounded-full px-3 py-2 text-sm font-bold text-[#45617A] transition hover:bg-[#10B981]/10 hover:text-[#0F4C5C]"
-            >
-              {link.label}
-            </Link>
-          ))}
+          {links.map((link) => {
+            const ativo = linkEstaAtivo(link.href, pathname);
+
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={ativo ? "page" : undefined}
+                className={classeLink(ativo)}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="hidden items-center gap-3 xl:flex">
@@ -233,16 +271,21 @@ export default function Header() {
       {menuAberto && (
         <div className="border-t border-slate-200 bg-white px-5 py-4 xl:hidden">
           <div className="mx-auto flex max-w-7xl flex-col gap-2">
-            {links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setMenuAberto(false)}
-                className="font-heading rounded-2xl px-4 py-3 text-sm font-bold text-[#45617A] transition hover:bg-[#10B981]/10 hover:text-[#0F4C5C]"
-              >
-                {link.label}
-              </Link>
-            ))}
+            {links.map((link) => {
+              const ativo = linkEstaAtivo(link.href, pathname);
+
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  aria-current={ativo ? "page" : undefined}
+                  onClick={() => setMenuAberto(false)}
+                  className={classeLinkMobile(ativo)}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
 
             <div className="mt-3 border-t border-slate-100 pt-3">
               {carregando && !usuario ? (

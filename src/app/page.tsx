@@ -2,81 +2,398 @@ import Header from "@/components/Header";
 import Link from "next/link";
 import { lugares } from "@/data/lugares";
 
-const categorias = [
+type IconeNome =
+  | "waves"
+  | "landmark"
+  | "utensils"
+  | "leaf"
+  | "compass"
+  | "suitcase"
+  | "handshake"
+  | "check"
+  | "star";
+
+const categorias: {
+  nome: string;
+  descricao: string;
+  icone: IconeNome;
+}[] = [
   {
     nome: "Praias",
     descricao: "Orla, litoral sul e paisagens naturais.",
-    icone: "🌊",
+    icone: "waves",
   },
   {
     nome: "Cultura",
     descricao: "História, arquitetura, museus e memória.",
-    icone: "🏛️",
+    icone: "landmark",
   },
   {
     nome: "Gastronomia",
     descricao: "Restaurantes regionais e sabores locais.",
-    icone: "🍽️",
+    icone: "utensils",
   },
   {
     nome: "Natureza",
     descricao: "Trilhas, mirantes, parques e ecoturismo.",
-    icone: "🌿",
+    icone: "leaf",
   },
   {
     nome: "Experiências",
     descricao: "Guias, artesanato e vivências locais.",
-    icone: "🧭",
+    icone: "compass",
   },
 ];
 
-export default function Home() {
-  const destaques = lugares.slice(0, 4);
+const publicos: {
+  titulo: string;
+  descricao: string;
+  icone: IconeNome;
+  href: string;
+  cta: string;
+}[] = [
+  {
+    titulo: "Para turistas",
+    descricao:
+      "Descubra lugares, receba recomendações, monte roteiros, faça check-in e acompanhe seu passaporte digital.",
+    icone: "suitcase",
+    href: "/explorar",
+    cta: "Explorar lugares",
+  },
+  {
+    titulo: "Para parceiros locais",
+    descricao:
+      "Cadastre experiências, acompanhe solicitações, ative o Plano Destaque e apareça para quem está planejando a viagem.",
+    icone: "handshake",
+    href: "/parceiro",
+    cta: "Ser parceiro",
+  },
+];
+
+const funcionamento = [
+  {
+    passo: "1",
+    titulo: "Descubra",
+    descricao:
+      "Explore atrativos culturais, ecológicos, gastronômicos e experiências locais pela Paraíba.",
+  },
+  {
+    passo: "2",
+    titulo: "Personalize",
+    descricao:
+      "Monte roteiros considerando interesses, tempo disponível, orçamento e deslocamentos.",
+  },
+  {
+    passo: "3",
+    titulo: "Vivencie",
+    descricao:
+      "Faça check-in, avance no passaporte digital e salve roteiros para continuar depois.",
+  },
+];
+
+const itensParceiro = [
+  "Cadastrar local ou experiência",
+  "Acompanhar o status da análise",
+  "Ativar Plano Destaque",
+  "Aparecer no catálogo turístico após aprovação",
+];
+
+function Icone({
+  nome,
+  className = "h-7 w-7",
+}: {
+  nome: IconeNome;
+  className?: string;
+}) {
+  const classes = `${className} stroke-current`;
+
+  if (nome === "waves") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M3 15c2.2 0 2.2-2 4.4-2s2.2 2 4.4 2 2.2-2 4.4-2 2.2 2 4.4 2" />
+        <path d="M3 19c2.2 0 2.2-2 4.4-2s2.2 2 4.4 2 2.2-2 4.4-2 2.2 2 4.4 2" />
+        <path d="M7 10c1.5-2.7 3.5-4 6-4 2.1 0 3.8.9 5 2.6" />
+      </svg>
+    );
+  }
+
+  if (nome === "landmark") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M4 10h16" />
+        <path d="M6 10v8" />
+        <path d="M10 10v8" />
+        <path d="M14 10v8" />
+        <path d="M18 10v8" />
+        <path d="M3 18h18" />
+        <path d="M5 21h14" />
+        <path d="M12 3 4 7h16l-8-4Z" />
+      </svg>
+    );
+  }
+
+  if (nome === "utensils") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M6 3v7" />
+        <path d="M9 3v7" />
+        <path d="M6 7h3" />
+        <path d="M7.5 10v11" />
+        <path d="M17 3c-2 2.1-3 4.4-3 7 0 2.2 1 3.4 3 3.7V21" />
+        <path d="M17 3v18" />
+      </svg>
+    );
+  }
+
+  if (nome === "leaf") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M5 19c8 1 14-5 14-14-9 0-15 6-14 14Z" />
+        <path d="M5 19c3-5 7-8 12-10" />
+      </svg>
+    );
+  }
+
+  if (nome === "compass") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="m15.5 8.5-2.2 5-4.8 2 2.2-5 4.8-2Z" />
+        <path d="M12 3v2" />
+        <path d="M12 19v2" />
+        <path d="M3 12h2" />
+        <path d="M19 12h2" />
+      </svg>
+    );
+  }
+
+  if (nome === "suitcase") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M9 7V5.8C9 4.8 9.8 4 10.8 4h2.4C14.2 4 15 4.8 15 5.8V7" />
+        <rect x="4" y="7" width="16" height="13" rx="3" />
+        <path d="M4 12h16" />
+        <path d="M9 12v2" />
+        <path d="M15 12v2" />
+      </svg>
+    );
+  }
+
+  if (nome === "handshake") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="m8.5 12.5 2.2-2.2a2 2 0 0 1 2.8 0l.4.4" />
+        <path d="m14 10.8 1.6-1.6a2 2 0 0 1 2.8 0L21 11.8" />
+        <path d="m3 12 3.2-3.2a2 2 0 0 1 2.8 0l1.7 1.7" />
+        <path d="m7 14 4.2 4.2a2 2 0 0 0 2.8 0l4.8-4.8" />
+        <path d="m12 19 1.4 1.4a2 2 0 0 0 2.8 0l.6-.6" />
+        <path d="m5.5 13.5 3.8 3.8" />
+      </svg>
+    );
+  }
+
+  if (nome === "check") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="m5 12 4 4L19 6" />
+      </svg>
+    );
+  }
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="m12 3 2.7 5.47 6.03.88-4.36 4.25 1.03 6-5.4-2.84-5.4 2.84 1.03-6-4.36-4.25 6.03-.88L12 3Z" />
+    </svg>
+  );
+}
+
+function classeImagem(imagemClasse: string) {
+  const classe = String(imagemClasse ?? "").trim();
+
+  if (!classe) {
+    return "bg-gradient-to-br from-cyan-300 to-blue-500";
+  }
+
+  if (classe.includes("bg-")) {
+    return classe;
+  }
+
+  return `bg-gradient-to-br ${classe}`;
+}
+
+export default function Home() {
+  const destaques = lugares.slice(0, 4);
+  const totalLocais = lugares.length;
+  const totalCidades = new Set(lugares.map((lugar) => lugar.cidade)).size;
+  const totalCategorias = new Set(lugares.map((lugar) => lugar.categoria)).size;
+
+  return (
+    <main className="min-h-screen bg-[#F5F7F8] text-[#0F2433]">
       <Header />
 
       <section className="hero-gradient text-white">
-        <div className="mx-auto grid max-w-7xl gap-10 px-6 py-20 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+        <div className="mx-auto grid max-w-7xl gap-10 px-5 py-16 md:py-20 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
           <div>
-            <p className="mb-4 inline-flex rounded-full bg-white/15 px-4 py-2 text-sm font-bold backdrop-blur">
-              Turismo cultural, ecológico e gastronômico na Paraíba
+            <p className="font-heading mb-4 inline-flex rounded-full bg-white/15 px-4 py-2 text-sm font-bold backdrop-blur">
+              Turismo inteligente, cultural e local na Paraíba
             </p>
 
-            <h1 className="max-w-3xl text-5xl font-black leading-tight tracking-tight md:text-6xl">
-              Planeje sua experiência pela Paraíba de forma inteligente.
+            <h1 className="font-heading max-w-4xl text-5xl font-black leading-tight tracking-tight md:text-6xl">
+              Planeje roteiros pela Paraíba com mais contexto e menos improviso.
             </h1>
 
             <p className="mt-6 max-w-2xl text-lg leading-8 text-white/90">
-              Crie roteiros personalizados considerando tempo disponível,
-              orçamento, interesses, horários ideais e deslocamento entre os
-              pontos turísticos.
+              Descubra lugares, receba recomendações, monte roteiros
+              personalizados e acompanhe suas experiências em um passaporte
+              digital pensado para valorizar o turismo paraibano.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
+                href="/explorar"
+                className="font-heading rounded-full bg-white px-7 py-4 text-center font-black text-[#0F4C5C] transition hover:bg-[#F2C98A]"
+              >
+                Explorar lugares
+              </Link>
+
+              <Link
                 href="/criar-roteiro"
-                className="rounded-full bg-emerald-500 px-7 py-4 text-center font-black text-white transition hover:bg-emerald-400"
+                className="font-heading rounded-full bg-[#10B981] px-7 py-4 text-center font-black text-white transition hover:bg-white hover:text-[#0F4C5C]"
               >
                 Criar meu roteiro
               </Link>
 
               <Link
-                href="/explorar"
-                className="rounded-full bg-white px-7 py-4 text-center font-black text-slate-900 transition hover:bg-slate-100"
+                href="/parceiro"
+                className="font-heading rounded-full border border-white/40 bg-white/10 px-7 py-4 text-center font-black text-white backdrop-blur transition hover:bg-white hover:text-[#0F4C5C]"
               >
-                Explorar lugares
+                Sou parceiro
               </Link>
+            </div>
+
+            <div className="mt-10 grid max-w-2xl grid-cols-3 gap-3">
+              <div className="rounded-3xl bg-white/15 p-4 backdrop-blur">
+                <p className="font-heading text-3xl font-black text-white">
+                  {totalLocais}
+                </p>
+
+                <p className="mt-1 text-xs font-semibold text-white/80">
+                  locais cadastrados
+                </p>
+              </div>
+
+              <div className="rounded-3xl bg-white/15 p-4 backdrop-blur">
+                <p className="font-heading text-3xl font-black text-white">
+                  {totalCidades}
+                </p>
+
+                <p className="mt-1 text-xs font-semibold text-white/80">
+                  cidades no catálogo
+                </p>
+              </div>
+
+              <div className="rounded-3xl bg-white/15 p-4 backdrop-blur">
+                <p className="font-heading text-3xl font-black text-white">
+                  {totalCategorias}
+                </p>
+
+                <p className="mt-1 text-xs font-semibold text-white/80">
+                  categorias turísticas
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="card-shadow rounded-[2rem] bg-white p-5 text-slate-900">
-            <div className="rounded-[1.5rem] bg-slate-50 p-5">
-              <h2 className="text-2xl font-black">Monte um roteiro rápido</h2>
+          <div className="card-shadow rounded-[2rem] bg-white p-5 text-[#0F2433]">
+            <div className="rounded-[1.5rem] bg-[#F5F7F8] p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="font-heading text-sm font-black text-[#10B981]">
+                    Experiência principal
+                  </p>
 
-              <p className="mt-1 text-sm text-slate-500">
-                Exemplo da experiência principal do sistema.
+                  <h2 className="font-heading mt-2 text-2xl font-black">
+                    Monte um roteiro rápido
+                  </h2>
+                </div>
+
+                <span className="rounded-full bg-[#10B981]/10 px-3 py-2 text-sm font-black text-[#0F4C5C]">
+                  Personalizado
+                </span>
+              </div>
+
+              <p className="mt-3 text-sm leading-6 text-[#45617A]">
+                Combine interesses, tempo e orçamento para criar uma sugestão de
+                roteiro turístico personalizada.
               </p>
 
               <div className="mt-6 grid gap-4">
@@ -113,7 +430,7 @@ export default function Home() {
                     {["Praias", "Cultura", "Gastronomia"].map((item) => (
                       <span
                         key={item}
-                        className="rounded-full bg-emerald-100 px-3 py-2 text-sm font-bold text-emerald-700"
+                        className="rounded-full bg-[#10B981]/10 px-3 py-2 text-sm font-bold text-[#0F4C5C]"
                       >
                         {item}
                       </span>
@@ -123,7 +440,7 @@ export default function Home() {
 
                 <Link
                   href="/criar-roteiro"
-                  className="mt-2 rounded-2xl bg-emerald-600 px-5 py-4 text-center font-black text-white transition hover:bg-emerald-700"
+                  className="font-heading mt-2 rounded-2xl bg-[#10B981] px-5 py-4 text-center font-black text-white transition hover:bg-[#0F4C5C]"
                 >
                   Gerar roteiro inteligente
                 </Link>
@@ -133,17 +450,112 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 py-14">
+      <section className="mx-auto max-w-7xl px-5 py-14">
+        <div className="mb-8 max-w-3xl">
+          <p className="font-heading font-black text-[#10B981]">
+            Para viajar e divulgar
+          </p>
+
+          <h2 className="font-heading mt-1 text-3xl font-black text-[#0F2433]">
+            Uma plataforma para quem visita e para quem oferece experiências.
+          </h2>
+
+          <p className="mt-3 text-sm leading-6 text-[#45617A]">
+            O foco público do Roteirize PB é facilitar a vida do turista e
+            aproximar parceiros locais de pessoas interessadas em conhecer a
+            Paraíba.
+          </p>
+        </div>
+
+        <div className="grid gap-5 md:grid-cols-2">
+          {publicos.map((publico) => (
+            <article
+              key={publico.titulo}
+              className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6 transition hover:-translate-y-1"
+            >
+              <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-[#10B981]/10 text-[#0F4C5C]">
+                <Icone nome={publico.icone} />
+              </div>
+
+              <h3 className="font-heading mt-5 text-xl font-black text-[#0F2433]">
+                {publico.titulo}
+              </h3>
+
+              <p className="mt-3 text-sm leading-6 text-[#45617A]">
+                {publico.descricao}
+              </p>
+
+              <Link
+                href={publico.href}
+                className="font-heading mt-5 inline-flex rounded-full border border-slate-200 px-5 py-3 text-sm font-black text-[#0F4C5C] transition hover:border-[#10B981] hover:text-[#10B981]"
+              >
+                {publico.cta}
+              </Link>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="soft-grid bg-white py-14">
+        <div className="mx-auto max-w-7xl px-5">
+          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="font-heading font-black text-[#10B981]">
+                Como funciona
+              </p>
+
+              <h2 className="font-heading mt-1 text-3xl font-black text-[#0F2433]">
+                Do interesse ao roteiro pronto.
+              </h2>
+            </div>
+
+            <Link
+              href="/mapa"
+              className="font-heading rounded-full bg-[#0F4C5C] px-6 py-3 text-center text-sm font-black text-white transition hover:bg-[#10B981]"
+            >
+              Ver mapa turístico
+            </Link>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-3">
+            {funcionamento.map((item) => (
+              <article
+                key={item.passo}
+                className="rounded-[2rem] border border-slate-100 bg-white p-6"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F2C98A]/35 font-heading text-lg font-black text-[#0F4C5C]">
+                  {item.passo}
+                </div>
+
+                <h3 className="font-heading mt-5 text-xl font-black text-[#0F2433]">
+                  {item.titulo}
+                </h3>
+
+                <p className="mt-3 text-sm leading-6 text-[#45617A]">
+                  {item.descricao}
+                </p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 py-14">
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
-            <p className="font-black text-emerald-700">Categorias</p>
+            <p className="font-heading font-black text-[#10B981]">
+              Categorias
+            </p>
 
-            <h2 className="mt-1 text-3xl font-black text-slate-900">
+            <h2 className="font-heading mt-1 text-3xl font-black text-[#0F2433]">
               Explore do seu jeito
             </h2>
           </div>
 
-          <Link href="/explorar" className="font-bold text-emerald-700">
+          <Link
+            href="/explorar"
+            className="font-heading font-bold text-[#0F4C5C] transition hover:text-[#10B981]"
+          >
             Ver todos
           </Link>
         </div>
@@ -154,13 +566,15 @@ export default function Home() {
               key={categoria.nome}
               className="card-shadow rounded-3xl bg-white p-5 transition hover:-translate-y-1"
             >
-              <div className="text-3xl">{categoria.icone}</div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#10B981]/10 text-[#0F4C5C]">
+                <Icone nome={categoria.icone} />
+              </div>
 
-              <h3 className="mt-4 font-black text-slate-900">
+              <h3 className="font-heading mt-4 font-black text-[#0F2433]">
                 {categoria.nome}
               </h3>
 
-              <p className="mt-2 text-sm leading-6 text-slate-500">
+              <p className="mt-2 text-sm leading-6 text-[#45617A]">
                 {categoria.descricao}
               </p>
             </div>
@@ -169,80 +583,109 @@ export default function Home() {
       </section>
 
       <section id="roteiros" className="soft-grid bg-white py-14">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="mb-8">
-            <p className="font-black text-emerald-700">Roteiros em destaque</p>
+        <div className="mx-auto max-w-7xl px-5">
+          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="font-heading font-black text-[#10B981]">
+                Roteiros em destaque
+              </p>
 
-            <h2 className="mt-1 text-3xl font-black text-slate-900">
-              Ideias prontas para começar
-            </h2>
+              <h2 className="font-heading mt-1 text-3xl font-black text-[#0F2433]">
+                Ideias prontas para começar
+              </h2>
+            </div>
+
+            <Link
+              href="/criar-roteiro"
+              className="font-heading rounded-full border border-slate-200 px-6 py-3 text-sm font-black text-[#0F4C5C] transition hover:border-[#10B981] hover:text-[#10B981]"
+            >
+              Criar roteiro
+            </Link>
           </div>
 
           <div className="grid gap-5 md:grid-cols-4">
             {destaques.map((lugar) => (
-              <div
+              <Link
                 key={lugar.id}
-                className="card-shadow overflow-hidden rounded-3xl bg-white"
+                href={`/lugares/${lugar.id}`}
+                className="card-shadow overflow-hidden rounded-3xl bg-white transition hover:-translate-y-1"
               >
-                <div
-                  className={`h-36 bg-gradient-to-br ${lugar.imagemClasse}`}
-                />
+                <div className={`${classeImagem(lugar.imagemClasse)} h-36`} />
 
                 <div className="p-5">
-                  <p className="text-xs font-black uppercase text-emerald-700">
+                  <p className="text-xs font-black uppercase text-[#10B981]">
                     {lugar.categoria}
                   </p>
 
-                  <h3 className="mt-2 text-lg font-black text-slate-900">
+                  <h3 className="font-heading mt-2 text-lg font-black text-[#0F2433]">
                     {lugar.nome}
                   </h3>
 
-                  <p className="mt-2 text-sm text-slate-500">
-                    {lugar.cidade} • {lugar.tempoSugeridoMin} min
+                  <p className="mt-2 text-sm text-[#45617A]">
+                    {lugar.cidade} <span aria-hidden="true">•</span>{" "}
+                    {lugar.tempoSugeridoMin} min
                   </p>
 
-                  <p className="mt-3 text-sm font-bold text-amber-600">
-                    ★ {lugar.nota}
+                  <p className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-amber-600">
+                    <Icone nome="star" className="h-4 w-4" />
+                    {lugar.nota}
                   </p>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="parceiros" className="mx-auto max-w-7xl px-6 py-16">
-        <div className="grid gap-8 rounded-[2rem] bg-slate-900 p-8 text-white md:grid-cols-[1.2fr_0.8fr] md:p-12">
+      <section id="parceiros" className="mx-auto max-w-7xl px-5 py-16">
+        <div className="grid gap-8 rounded-[2rem] bg-[#0F2433] p-8 text-white md:grid-cols-[1.2fr_0.8fr] md:p-12">
           <div>
-            <p className="font-black text-emerald-300">Parceiros locais</p>
+            <p className="font-heading font-black text-[#10B981]">
+              Parceiros locais
+            </p>
 
-            <h2 className="mt-2 text-4xl font-black">
+            <h2 className="font-heading mt-2 text-4xl font-black">
               Divulgue experiências, serviços e lugares da Paraíba.
             </h2>
 
             <p className="mt-4 max-w-2xl leading-8 text-white/75">
-              Guias, restaurantes, artesãos e iniciativas culturais poderão
-              cadastrar seus serviços para análise e inclusão nos roteiros da
-              plataforma.
+              Guias, restaurantes, artesãos, hospedagens e iniciativas culturais
+              podem cadastrar seus serviços para análise, publicação e destaque
+              na plataforma.
             </p>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/parceiro"
+                className="font-heading rounded-full bg-[#10B981] px-6 py-3 text-center text-sm font-black text-white transition hover:bg-white hover:text-[#0F4C5C]"
+              >
+                Quero ser parceiro
+              </Link>
+
+              <Link
+                href="/planos"
+                className="font-heading rounded-full border border-white/30 px-6 py-3 text-center text-sm font-black text-white transition hover:bg-white hover:text-[#0F4C5C]"
+              >
+                Conhecer Plano Destaque
+              </Link>
+            </div>
           </div>
 
-          <div className="rounded-3xl bg-white p-6 text-slate-900">
-            <h3 className="text-xl font-black">Painel do parceiro</h3>
+          <div className="rounded-3xl bg-white p-6 text-[#0F2433]">
+            <h3 className="font-heading text-xl font-black">
+              Painel do parceiro
+            </h3>
 
-            <ul className="mt-4 space-y-3 text-sm text-slate-600">
-              <li>✓ Cadastrar local ou experiência</li>
-              <li>✓ Informar horários, valores e endereço</li>
-              <li>✓ Receber avaliações dos turistas</li>
-              <li>✓ Aguardar aprovação do administrador</li>
+            <ul className="mt-4 space-y-3 text-sm text-[#45617A]">
+              {itensParceiro.map((item) => (
+                <li key={item} className="flex gap-3">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#10B981]/10 text-[#0F4C5C]">
+                    <Icone nome="check" className="h-3.5 w-3.5" />
+                  </span>
+                  <span>{item}</span>
+                </li>
+              ))}
             </ul>
-
-            <Link
-              href="/parceiro"
-              className="mt-6 block w-full rounded-2xl bg-emerald-600 px-5 py-3 text-center font-black text-white transition hover:bg-emerald-700"
-            >
-              Quero ser parceiro
-            </Link>
           </div>
         </div>
       </section>

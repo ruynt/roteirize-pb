@@ -7,6 +7,25 @@ import { useEffect, useMemo, useState } from "react";
 const CHAVE_CHECKINS = "roteirize_checkins";
 const CHAVE_ROTEIROS_SALVOS = "roteirize_roteiros_salvos";
 
+type IconeNome =
+  | "pin"
+  | "compass"
+  | "trophy"
+  | "waves"
+  | "landmark"
+  | "utensils"
+  | "leaf"
+  | "handshake"
+  | "map"
+  | "notebook"
+  | "passport"
+  | "check"
+  | "trash"
+  | "route"
+  | "city"
+  | "grid"
+  | "badge";
+
 type Checkin = {
   id: string;
   nome: string;
@@ -33,12 +52,342 @@ type Selo = {
   id: string;
   nome: string;
   descricao: string;
-  icone: string;
+  icone: IconeNome;
   desbloqueado: boolean;
   progresso: number;
   meta: number;
   textoProgresso: string;
 };
+
+function Icone({
+  nome,
+  className = "h-6 w-6",
+}: {
+  nome: IconeNome;
+  className?: string;
+}) {
+  const classes = `${className} stroke-current`;
+
+  if (nome === "pin") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M12 21s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12Z" />
+        <circle cx="12" cy="9" r="2.5" />
+      </svg>
+    );
+  }
+
+  if (nome === "compass") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="m15.5 8.5-2.2 5-4.8 2 2.2-5 4.8-2Z" />
+        <path d="M12 3v2" />
+        <path d="M12 19v2" />
+        <path d="M3 12h2" />
+        <path d="M19 12h2" />
+      </svg>
+    );
+  }
+
+  if (nome === "trophy") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M8 4h8v5a4 4 0 0 1-8 0V4Z" />
+        <path d="M8 7H5a2 2 0 0 0 2 4h1" />
+        <path d="M16 7h3a2 2 0 0 1-2 4h-1" />
+        <path d="M12 13v4" />
+        <path d="M9 21h6" />
+        <path d="M10 17h4" />
+      </svg>
+    );
+  }
+
+  if (nome === "waves") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M3 15c2.2 0 2.2-2 4.4-2s2.2 2 4.4 2 2.2-2 4.4-2 2.2 2 4.4 2" />
+        <path d="M3 19c2.2 0 2.2-2 4.4-2s2.2 2 4.4 2 2.2-2 4.4-2 2.2 2 4.4 2" />
+        <path d="M7 10c1.5-2.7 3.5-4 6-4 2.1 0 3.8.9 5 2.6" />
+      </svg>
+    );
+  }
+
+  if (nome === "landmark") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M4 10h16" />
+        <path d="M6 10v8" />
+        <path d="M10 10v8" />
+        <path d="M14 10v8" />
+        <path d="M18 10v8" />
+        <path d="M3 18h18" />
+        <path d="M5 21h14" />
+        <path d="M12 3 4 7h16l-8-4Z" />
+      </svg>
+    );
+  }
+
+  if (nome === "utensils") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M6 3v7" />
+        <path d="M9 3v7" />
+        <path d="M6 7h3" />
+        <path d="M7.5 10v11" />
+        <path d="M17 3c-2 2.1-3 4.4-3 7 0 2.2 1 3.4 3 3.7V21" />
+        <path d="M17 3v18" />
+      </svg>
+    );
+  }
+
+  if (nome === "leaf") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M5 19c8 1 14-5 14-14-9 0-15 6-14 14Z" />
+        <path d="M5 19c3-5 7-8 12-10" />
+      </svg>
+    );
+  }
+
+  if (nome === "handshake") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="m8.5 12.5 2.2-2.2a2 2 0 0 1 2.8 0l.4.4" />
+        <path d="m14 10.8 1.6-1.6a2 2 0 0 1 2.8 0L21 11.8" />
+        <path d="m3 12 3.2-3.2a2 2 0 0 1 2.8 0l1.7 1.7" />
+        <path d="m7 14 4.2 4.2a2 2 0 0 0 2.8 0l4.8-4.8" />
+      </svg>
+    );
+  }
+
+  if (nome === "map") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="m3 6 6-2 6 2 6-2v14l-6 2-6-2-6 2V6Z" />
+        <path d="M9 4v14" />
+        <path d="M15 6v14" />
+      </svg>
+    );
+  }
+
+  if (nome === "notebook") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M7 3h11a2 2 0 0 1 2 2v16H7a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Z" />
+        <path d="M7 3v18" />
+        <path d="M10 8h6" />
+        <path d="M10 12h5" />
+      </svg>
+    );
+  }
+
+  if (nome === "passport") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <rect x="6" y="3" width="12" height="18" rx="2" />
+        <circle cx="12" cy="11" r="3" />
+        <path d="M9 16h6" />
+      </svg>
+    );
+  }
+
+  if (nome === "check") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="m5 12 4 4L19 6" />
+      </svg>
+    );
+  }
+
+  if (nome === "trash") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M4 7h16" />
+        <path d="M10 11v6" />
+        <path d="M14 11v6" />
+        <path d="M6 7l1 14h10l1-14" />
+        <path d="M9 7V4h6v3" />
+      </svg>
+    );
+  }
+
+  if (nome === "route") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M6 19a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+        <path d="M18 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+        <path d="M6 13V8a3 3 0 0 1 3-3h6" />
+        <path d="M18 11v5a3 3 0 0 1-3 3H9" />
+      </svg>
+    );
+  }
+
+  if (nome === "city") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M4 21h16" />
+        <path d="M6 21V7l6-4 6 4v14" />
+        <path d="M9 21v-6h6v6" />
+        <path d="M9 10h.01" />
+        <path d="M15 10h.01" />
+      </svg>
+    );
+  }
+
+  if (nome === "grid") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <rect x="4" y="4" width="6" height="6" rx="1.5" />
+        <rect x="14" y="4" width="6" height="6" rx="1.5" />
+        <rect x="4" y="14" width="6" height="6" rx="1.5" />
+        <rect x="14" y="14" width="6" height="6" rx="1.5" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={classes}
+      aria-hidden="true"
+    >
+      <path d="M12 3 15 9l6 .8-4.4 4.3 1 6-5.6-3-5.6 3 1-6L3 9.8 9 9l3-6Z" />
+    </svg>
+  );
+}
 
 function carregarLista<T>(chave: string): T[] {
   if (typeof window === "undefined") {
@@ -132,49 +481,49 @@ export default function PassaportePage() {
         id: "primeiro-checkin",
         nome: "Primeiro Check-in",
         descricao: "Realize seu primeiro check-in em um atrativo turístico.",
-        icone: "📍",
+        icone: "pin",
         desbloqueado: estatisticas.totalCheckins >= 1,
         progresso: estatisticas.totalCheckins,
         meta: 1,
         textoProgresso: textoProgresso(
           estatisticas.totalCheckins,
           1,
-          "check-in",
+          "check-in"
         ),
       },
       {
         id: "explorador-iniciante",
         nome: "Explorador Iniciante",
         descricao: "Faça check-in em 3 lugares diferentes.",
-        icone: "🧭",
+        icone: "compass",
         desbloqueado: estatisticas.totalCheckins >= 3,
         progresso: estatisticas.totalCheckins,
         meta: 3,
         textoProgresso: textoProgresso(
           estatisticas.totalCheckins,
           3,
-          "check-ins",
+          "check-ins"
         ),
       },
       {
         id: "explorador-avancado",
         nome: "Explorador Avançado",
         descricao: "Faça check-in em 6 lugares diferentes.",
-        icone: "🏆",
+        icone: "trophy",
         desbloqueado: estatisticas.totalCheckins >= 6,
         progresso: estatisticas.totalCheckins,
         meta: 6,
         textoProgresso: textoProgresso(
           estatisticas.totalCheckins,
           6,
-          "check-ins",
+          "check-ins"
         ),
       },
       {
         id: "roteiro-praia",
         nome: "Roteiro de Praia",
         descricao: "Visite pelo menos um atrativo da categoria Praia.",
-        icone: "🏖️",
+        icone: "waves",
         desbloqueado: temCategoria("Praia"),
         progresso: temCategoria("Praia") ? 1 : 0,
         meta: 1,
@@ -184,7 +533,7 @@ export default function PassaportePage() {
         id: "explorador-cultural",
         nome: "Explorador Cultural",
         descricao: "Visite pelo menos um atrativo cultural.",
-        icone: "🏛️",
+        icone: "landmark",
         desbloqueado: temCategoria("Cultura"),
         progresso: temCategoria("Cultura") ? 1 : 0,
         meta: 1,
@@ -194,7 +543,7 @@ export default function PassaportePage() {
         id: "sabor-paraibano",
         nome: "Sabor Paraibano",
         descricao: "Faça check-in em uma experiência gastronômica.",
-        icone: "🍽️",
+        icone: "utensils",
         desbloqueado: temCategoria("Gastronomia"),
         progresso: temCategoria("Gastronomia") ? 1 : 0,
         meta: 1,
@@ -206,7 +555,7 @@ export default function PassaportePage() {
         id: "ecoturista",
         nome: "Ecoturista",
         descricao: "Visite um atrativo ligado à natureza.",
-        icone: "🌿",
+        icone: "leaf",
         desbloqueado: temCategoria("Natureza"),
         progresso: temCategoria("Natureza") ? 1 : 0,
         meta: 1,
@@ -216,7 +565,7 @@ export default function PassaportePage() {
         id: "vivencia-local",
         nome: "Vivência Local",
         descricao: "Participe de uma experiência local.",
-        icone: "🤝",
+        icone: "handshake",
         desbloqueado: temCategoria("Experiência"),
         progresso: temCategoria("Experiência") ? 1 : 0,
         meta: 1,
@@ -228,17 +577,21 @@ export default function PassaportePage() {
         id: "paraiba-em-rota",
         nome: "Paraíba em Rota",
         descricao: "Faça check-in em 2 cidades diferentes.",
-        icone: "🗺️",
+        icone: "map",
         desbloqueado: estatisticas.totalCidades >= 2,
         progresso: estatisticas.totalCidades,
         meta: 2,
-        textoProgresso: textoProgresso(estatisticas.totalCidades, 2, "cidades"),
+        textoProgresso: textoProgresso(
+          estatisticas.totalCidades,
+          2,
+          "cidades"
+        ),
       },
       {
         id: "planejador",
         nome: "Planejador de Viagens",
         descricao: "Salve pelo menos um roteiro personalizado.",
-        icone: "📒",
+        icone: "notebook",
         desbloqueado: estatisticas.totalRoteiros >= 1,
         progresso: estatisticas.totalRoteiros,
         meta: 1,
@@ -257,7 +610,7 @@ export default function PassaportePage() {
 
   function limparCheckins() {
     const confirmar = confirm(
-      "Tem certeza que deseja limpar todos os check-ins do passaporte?",
+      "Tem certeza que deseja limpar todos os check-ins do passaporte?"
     );
 
     if (!confirmar) {
@@ -274,34 +627,54 @@ export default function PassaportePage() {
 
       <section className="hero-gradient text-white">
         <div className="mx-auto max-w-7xl px-5 py-16 md:py-20">
-          <div className="max-w-4xl">
-            <span className="font-heading rounded-full bg-white/20 px-4 py-2 text-sm font-bold text-white backdrop-blur">
-              Passaporte Digital
-            </span>
+          <div className="grid gap-8 lg:grid-cols-[1fr_340px] lg:items-center">
+            <div className="max-w-4xl">
+              <span className="font-heading rounded-full bg-white/20 px-4 py-2 text-sm font-bold text-white backdrop-blur">
+                Passaporte Digital
+              </span>
 
-            <h1 className="font-heading mt-6 text-4xl font-black leading-tight md:text-6xl">
-              Acompanhe sua jornada pela Paraíba.
-            </h1>
+              <h1 className="font-heading mt-6 text-4xl font-black leading-tight md:text-6xl">
+                Acompanhe sua jornada pela Paraíba.
+              </h1>
 
-            <p className="mt-5 max-w-3xl text-lg leading-8 text-white/90">
-              Faça check-in em atrativos turísticos, desbloqueie selos virtuais
-              e acompanhe sua evolução como explorador paraibano.
-            </p>
+              <p className="mt-5 max-w-3xl text-lg leading-8 text-white/90">
+                Faça check-in em atrativos turísticos, desbloqueie selos
+                virtuais e acompanhe sua evolução como explorador paraibano.
+              </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/explorar"
-                className="font-heading rounded-full bg-white px-6 py-3 text-center text-sm font-black text-[#0F4C5C] transition hover:bg-[#F2C98A]"
-              >
-                Explorar locais
-              </Link>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/explorar"
+                  className="font-heading rounded-full bg-white px-6 py-3 text-center text-sm font-black text-[#0F4C5C] transition hover:bg-[#F2C98A]"
+                >
+                  Explorar locais
+                </Link>
 
-              <Link
-                href="/criar-roteiro"
-                className="font-heading rounded-full border border-white/40 bg-white/10 px-6 py-3 text-center text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-[#0F4C5C]"
-              >
-                Criar roteiro
-              </Link>
+                <Link
+                  href="/criar-roteiro"
+                  className="font-heading rounded-full border border-white/40 bg-white/10 px-6 py-3 text-center text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-[#0F4C5C]"
+                >
+                  Criar roteiro
+                </Link>
+              </div>
+            </div>
+
+            <div className="rounded-[2rem] border border-white/20 bg-white/15 p-6 backdrop-blur">
+              <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-white/20 text-white">
+                <Icone nome="passport" className="h-8 w-8" />
+              </div>
+
+              <p className="font-heading mt-5 text-sm font-bold text-white/80">
+                Progresso do passaporte
+              </p>
+
+              <p className="font-heading mt-2 text-4xl font-black text-white">
+                {progressoGeral}%
+              </p>
+
+              <p className="mt-3 text-sm leading-6 text-white/85">
+                {selosDesbloqueados} de {selos.length} selo(s) desbloqueado(s).
+              </p>
             </div>
           </div>
         </div>
@@ -316,7 +689,11 @@ export default function PassaportePage() {
           <div className="space-y-8">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
               <div className="card-shadow rounded-[1.5rem] bg-white p-5">
-                <p className="font-heading text-xs font-bold text-[#45617A]">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#10B981]/10 text-[#0F4C5C]">
+                  <Icone nome="pin" />
+                </div>
+
+                <p className="font-heading mt-4 text-xs font-bold text-[#45617A]">
                   Check-ins
                 </p>
 
@@ -330,7 +707,11 @@ export default function PassaportePage() {
               </div>
 
               <div className="card-shadow rounded-[1.5rem] bg-white p-5">
-                <p className="font-heading text-xs font-bold text-[#45617A]">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#10B981]/10 text-[#0F4C5C]">
+                  <Icone nome="city" />
+                </div>
+
+                <p className="font-heading mt-4 text-xs font-bold text-[#45617A]">
                   Cidades
                 </p>
 
@@ -344,7 +725,11 @@ export default function PassaportePage() {
               </div>
 
               <div className="card-shadow rounded-[1.5rem] bg-white p-5">
-                <p className="font-heading text-xs font-bold text-[#45617A]">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#10B981]/10 text-[#0F4C5C]">
+                  <Icone nome="grid" />
+                </div>
+
+                <p className="font-heading mt-4 text-xs font-bold text-[#45617A]">
                   Categorias
                 </p>
 
@@ -358,7 +743,11 @@ export default function PassaportePage() {
               </div>
 
               <div className="card-shadow rounded-[1.5rem] bg-white p-5">
-                <p className="font-heading text-xs font-bold text-[#45617A]">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#10B981]/10 text-[#0F4C5C]">
+                  <Icone nome="route" />
+                </div>
+
+                <p className="font-heading mt-4 text-xs font-bold text-[#45617A]">
                   Roteiros
                 </p>
 
@@ -367,12 +756,16 @@ export default function PassaportePage() {
                 </p>
 
                 <p className="mt-2 text-xs font-semibold text-[#45617A]">
-                  roteiros salvos
+                  {estatisticas.locaisEmRoteiros} locais planejados
                 </p>
               </div>
 
               <div className="card-shadow rounded-[1.5rem] bg-white p-5">
-                <p className="font-heading text-xs font-bold text-[#45617A]">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#10B981]/10 text-[#0F4C5C]">
+                  <Icone nome="badge" />
+                </div>
+
+                <p className="font-heading mt-4 text-xs font-bold text-[#45617A]">
                   Selos
                 </p>
 
@@ -414,8 +807,8 @@ export default function PassaportePage() {
 
             {checkins.length === 0 ? (
               <section className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-8 text-center">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-[#F2C98A]/50 text-3xl">
-                  📍
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-[#F2C98A]/35 text-[#0F4C5C]">
+                  <Icone nome="pin" className="h-8 w-8" />
                 </div>
 
                 <h2 className="font-heading mt-5 text-2xl font-black text-[#0F2433]">
@@ -450,8 +843,9 @@ export default function PassaportePage() {
                   <button
                     type="button"
                     onClick={limparCheckins}
-                    className="font-heading rounded-full border border-slate-200 px-5 py-3 text-sm font-bold text-[#45617A] transition hover:border-red-200 hover:text-red-500"
+                    className="font-heading inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 px-5 py-3 text-sm font-bold text-[#45617A] transition hover:border-red-200 hover:text-red-500"
                   >
+                    <Icone nome="trash" className="h-4 w-4" />
                     Limpar check-ins
                   </button>
                 </div>
@@ -464,8 +858,8 @@ export default function PassaportePage() {
                       className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-5 transition hover:border-[#10B981] hover:bg-[#10B981]/10"
                     >
                       <div className="flex items-start gap-3">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-2xl">
-                          📍
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-[#0F4C5C]">
+                          <Icone nome="pin" />
                         </div>
 
                         <div>
@@ -474,7 +868,8 @@ export default function PassaportePage() {
                           </p>
 
                           <p className="mt-1 text-xs font-bold text-[#0F4C5C]">
-                            {checkin.cidade} • {checkin.categoria}
+                            {checkin.cidade} <span aria-hidden="true">•</span>{" "}
+                            {checkin.categoria}
                           </p>
 
                           <p className="mt-2 text-xs text-[#45617A]">
@@ -502,7 +897,7 @@ export default function PassaportePage() {
                 {selos.map((selo) => {
                   const largura = Math.min(
                     100,
-                    Math.round((selo.progresso / selo.meta) * 100),
+                    Math.round((selo.progresso / selo.meta) * 100)
                   );
 
                   return (
@@ -518,17 +913,25 @@ export default function PassaportePage() {
                         <div
                           className={
                             selo.desbloqueado
-                              ? "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-3xl"
-                              : "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-3xl grayscale"
+                              ? "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-[#0F4C5C]"
+                              : "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-slate-400"
                           }
                         >
-                          {selo.icone}
+                          <Icone nome={selo.icone} className="h-7 w-7" />
                         </div>
 
                         <div>
-                          <p className="font-heading text-lg font-black text-[#0F2433]">
-                            {selo.nome}
-                          </p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-heading text-lg font-black text-[#0F2433]">
+                              {selo.nome}
+                            </p>
+
+                            {selo.desbloqueado && (
+                              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#10B981] text-white">
+                                <Icone nome="check" className="h-3.5 w-3.5" />
+                              </span>
+                            )}
+                          </div>
 
                           <p className="mt-2 text-sm leading-6 text-[#45617A]">
                             {selo.descricao}
@@ -564,14 +967,25 @@ export default function PassaportePage() {
 
             {roteiros.length > 0 && (
               <section className="rounded-[2rem] border border-slate-100 bg-white p-6 md:p-8">
-                <h2 className="font-heading text-2xl font-black text-[#0F2433]">
-                  Roteiros salvos
-                </h2>
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h2 className="font-heading text-2xl font-black text-[#0F2433]">
+                      Roteiros salvos
+                    </h2>
 
-                <p className="mt-2 text-sm leading-6 text-[#45617A]">
-                  Seus roteiros continuam registrados como parte do planejamento
-                  de viagem.
-                </p>
+                    <p className="mt-2 text-sm leading-6 text-[#45617A]">
+                      Seus roteiros continuam registrados como parte do
+                      planejamento de viagem.
+                    </p>
+                  </div>
+
+                  <Link
+                    href="/roteiros-salvos"
+                    className="font-heading rounded-full border border-slate-200 px-5 py-3 text-sm font-black text-[#0F4C5C] transition hover:border-[#10B981] hover:text-[#10B981]"
+                  >
+                    Ver todos
+                  </Link>
+                </div>
 
                 <div className="mt-6 grid gap-4 md:grid-cols-2">
                   {roteiros.slice(0, 4).map((roteiro) => (
@@ -580,17 +994,26 @@ export default function PassaportePage() {
                       href="/roteiros-salvos"
                       className="rounded-[1.5rem] bg-slate-50 p-5 transition hover:bg-[#10B981]/10"
                     >
-                      <p className="font-heading text-base font-black text-[#0F2433]">
-                        {roteiro.titulo ?? "Roteiro salvo"}
-                      </p>
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[#0F4C5C]">
+                          <Icone nome="route" />
+                        </div>
 
-                      <p className="mt-2 text-sm text-[#45617A]">
-                        {roteiro.paradas?.length ?? 0} parada(s) planejada(s)
-                      </p>
+                        <div>
+                          <p className="font-heading text-base font-black text-[#0F2433]">
+                            {roteiro.titulo ?? "Roteiro salvo"}
+                          </p>
 
-                      <p className="mt-2 text-xs text-[#45617A]">
-                        Criado em {formatarData(roteiro.criadoEm)}
-                      </p>
+                          <p className="mt-2 text-sm text-[#45617A]">
+                            {roteiro.paradas?.length ?? 0} parada(s)
+                            planejada(s)
+                          </p>
+
+                          <p className="mt-2 text-xs text-[#45617A]">
+                            Criado em {formatarData(roteiro.criadoEm)}
+                          </p>
+                        </div>
+                      </div>
                     </Link>
                   ))}
                 </div>

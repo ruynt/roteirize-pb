@@ -9,6 +9,26 @@ import { useEffect, useMemo, useState } from "react";
 const CHAVE_LUGARES_SELECIONADOS = "roteirize_lugares_selecionados";
 const CHAVE_ROTEIROS_SALVOS = "roteirize_roteiros_salvos";
 
+type IconeNome =
+  | "route"
+  | "compass"
+  | "mapPin"
+  | "clock"
+  | "car"
+  | "wallet"
+  | "activity"
+  | "utensils"
+  | "selection"
+  | "check"
+  | "save"
+  | "warning"
+  | "map"
+  | "spark"
+  | "calendar"
+  | "timer"
+  | "move"
+  | "plus";
+
 type Lugar = {
   id: string;
   nome: string;
@@ -40,9 +60,350 @@ type JanelaHorario = {
   fim: number;
 };
 
+type RoteiroSalvo = {
+  id: string;
+  titulo?: string;
+  criadoEm?: string;
+};
+
 const opcoesTransporte = ["Carro", "Uber/99", "Transporte público", "A pé"];
 const opcoesOrcamento = ["Gratuito", "Econômico", "Médio", "Alto"];
 const opcoesRitmo = ["Leve", "Moderado", "Intenso"];
+
+function Icone({
+  nome,
+  className = "h-5 w-5",
+}: {
+  nome: IconeNome;
+  className?: string;
+}) {
+  const classes = `${className} stroke-current`;
+
+  if (nome === "route") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M6 19a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+        <path d="M18 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+        <path d="M6 13V8a3 3 0 0 1 3-3h6" />
+        <path d="M18 11v5a3 3 0 0 1-3 3H9" />
+      </svg>
+    );
+  }
+
+  if (nome === "compass") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="m15.5 8.5-2.2 5-4.8 2 2.2-5 4.8-2Z" />
+        <path d="M12 3v2" />
+        <path d="M12 19v2" />
+        <path d="M3 12h2" />
+        <path d="M19 12h2" />
+      </svg>
+    );
+  }
+
+  if (nome === "mapPin") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M12 21s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12Z" />
+        <circle cx="12" cy="9" r="2.5" />
+      </svg>
+    );
+  }
+
+  if (nome === "clock") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </svg>
+    );
+  }
+
+  if (nome === "car") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M5 16h14" />
+        <path d="M6 16l1-5a3 3 0 0 1 3-2h4a3 3 0 0 1 3 2l1 5" />
+        <path d="M7 16v2" />
+        <path d="M17 16v2" />
+        <circle cx="8" cy="18" r="1.5" />
+        <circle cx="16" cy="18" r="1.5" />
+      </svg>
+    );
+  }
+
+  if (nome === "wallet") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M4 7a3 3 0 0 1 3-3h11v4H7a3 3 0 0 0-3 3v6a3 3 0 0 0 3 3h13V8" />
+        <path d="M16 14h4" />
+      </svg>
+    );
+  }
+
+  if (nome === "activity") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M5 19h14" />
+        <path d="M7 16v-4" />
+        <path d="M12 16V8" />
+        <path d="M17 16V5" />
+      </svg>
+    );
+  }
+
+  if (nome === "utensils") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M6 3v7" />
+        <path d="M9 3v7" />
+        <path d="M6 7h3" />
+        <path d="M7.5 10v11" />
+        <path d="M17 3c-2 2.1-3 4.4-3 7 0 2.2 1 3.4 3 3.7V21" />
+        <path d="M17 3v18" />
+      </svg>
+    );
+  }
+
+  if (nome === "selection") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <rect x="4" y="4" width="16" height="16" rx="3" />
+        <path d="m8 12 3 3 5-6" />
+      </svg>
+    );
+  }
+
+  if (nome === "check") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="m5 12 4 4L19 6" />
+      </svg>
+    );
+  }
+
+  if (nome === "save") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M5 3h12l2 2v16H5V3Z" />
+        <path d="M8 3v6h8V3" />
+        <path d="M8 21v-7h8v7" />
+      </svg>
+    );
+  }
+
+  if (nome === "warning") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M12 4 3 20h18L12 4Z" />
+        <path d="M12 9v5" />
+        <path d="M12 17h.01" />
+      </svg>
+    );
+  }
+
+  if (nome === "map") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="m3 6 6-2 6 2 6-2v14l-6 2-6-2-6 2V6Z" />
+        <path d="M9 4v14" />
+        <path d="M15 6v14" />
+      </svg>
+    );
+  }
+
+  if (nome === "spark") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M12 3 14 9l6 2-6 2-2 8-2-8-6-2 6-2 2-6Z" />
+      </svg>
+    );
+  }
+
+  if (nome === "calendar") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <rect x="4" y="5" width="16" height="16" rx="2" />
+        <path d="M8 3v4" />
+        <path d="M16 3v4" />
+        <path d="M4 10h16" />
+      </svg>
+    );
+  }
+
+  if (nome === "timer") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M10 2h4" />
+        <path d="M12 14 15 9" />
+        <circle cx="12" cy="14" r="8" />
+      </svg>
+    );
+  }
+
+  if (nome === "move") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={classes}
+        aria-hidden="true"
+      >
+        <path d="M7 7h10" />
+        <path d="M7 12h10" />
+        <path d="M7 17h10" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={classes}
+      aria-hidden="true"
+    >
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </svg>
+  );
+}
 
 function arredondarParaMultiplo(valor: number, multiplo = 5) {
   return Math.round(valor / multiplo) * multiplo;
@@ -182,6 +543,22 @@ function classificarNivel(totalMinutos: number) {
   }
 
   return "Roteiro intenso";
+}
+
+function carregarRoteirosSalvos() {
+  const texto = localStorage.getItem(CHAVE_ROTEIROS_SALVOS);
+
+  if (!texto) {
+    return [];
+  }
+
+  try {
+    const dados = JSON.parse(texto) as RoteiroSalvo[];
+    return Array.isArray(dados) ? dados : [];
+  } catch {
+    localStorage.removeItem(CHAVE_ROTEIROS_SALVOS);
+    return [];
+  }
 }
 
 export default function CriarRoteiroPage() {
@@ -468,10 +845,7 @@ export default function CriarRoteiroPage() {
       return;
     }
 
-    const roteirosSalvosTexto = localStorage.getItem(CHAVE_ROTEIROS_SALVOS);
-    const roteirosSalvos = roteirosSalvosTexto
-      ? JSON.parse(roteirosSalvosTexto)
-      : [];
+    const roteirosSalvos = carregarRoteirosSalvos();
 
     const novoRoteiro = {
       id: crypto.randomUUID(),
@@ -519,41 +893,74 @@ export default function CriarRoteiroPage() {
     <main className="min-h-screen bg-[#F5F7F8] text-[#0F2433]">
       <Header />
 
-      <section className="soft-grid border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-5 py-12">
-          <div className="max-w-3xl">
-            <span className="font-heading rounded-full bg-[#10B981]/10 px-4 py-2 text-sm font-bold text-[#0F4C5C]">
-              Criador inteligente de roteiros
-            </span>
+      <section className="hero-gradient text-white">
+        <div className="mx-auto max-w-7xl px-5 py-14 md:py-16">
+          <div className="grid gap-8 lg:grid-cols-[1fr_340px] lg:items-center">
+            <div className="max-w-4xl">
+              <span className="font-heading rounded-full bg-white/20 px-4 py-2 text-sm font-bold text-white backdrop-blur">
+                Criador inteligente de roteiros
+              </span>
 
-            <h1 className="font-heading mt-6 text-4xl font-black leading-tight text-[#0F2433] md:text-6xl">
-              Monte um roteiro personalizado com base no seu tempo e interesses.
-            </h1>
+              <h1 className="font-heading mt-6 text-4xl font-black leading-tight md:text-6xl">
+                Monte um roteiro personalizado com base no seu tempo e interesses.
+              </h1>
 
-            <p className="mt-5 text-lg leading-8 text-[#45617A]">
-              O Roteirize PB organiza uma sugestão de passeio considerando
-              cidade, orçamento, transporte, ritmo, interesses, horários ideais
-              e locais selecionados na página Explorar.
-            </p>
+              <p className="mt-5 max-w-3xl text-lg leading-8 text-white/90">
+                O Roteirize PB organiza uma sugestão de passeio considerando
+                cidade, orçamento, transporte, ritmo, interesses, horários
+                ideais e locais selecionados na página Explorar.
+              </p>
+            </div>
+
+            <div className="rounded-[2rem] border border-white/20 bg-white/15 p-6 backdrop-blur">
+              <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-white/20 text-white">
+                <Icone nome="route" className="h-8 w-8" />
+              </div>
+
+              <p className="font-heading mt-5 text-sm font-bold text-white/80">
+                Planejamento rápido
+              </p>
+
+              <p className="font-heading mt-2 text-4xl font-black text-white">
+                {roteiro.length || lugaresSelecionadosDetalhados.length}
+              </p>
+
+              <p className="mt-3 text-sm leading-6 text-white/85">
+                {roteiro.length > 0
+                  ? "parada(s) no roteiro gerado."
+                  : "lugar(es) selecionado(s) serão considerados."}
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
       <section className="mx-auto grid max-w-7xl gap-8 px-5 py-10 lg:grid-cols-[420px_1fr]">
         <aside className="card-shadow h-fit rounded-[2rem] border border-slate-100 bg-white p-6">
-          <h2 className="font-heading text-2xl font-black text-[#0F2433]">
-            Preferências
-          </h2>
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#10B981]/10 text-[#0F4C5C]">
+              <Icone nome="compass" />
+            </div>
 
-          <p className="mt-2 text-sm leading-6 text-[#45617A]">
-            Ajuste os campos abaixo para o sistema gerar uma sugestão de roteiro.
-          </p>
+            <div>
+              <h2 className="font-heading text-2xl font-black text-[#0F2433]">
+                Preferências
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-[#45617A]">
+                Ajuste os campos abaixo para o sistema gerar uma sugestão de
+                roteiro.
+              </p>
+            </div>
+          </div>
 
           <div className="mt-6 space-y-5">
             <div>
-              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+              <label className="font-heading flex items-center gap-2 text-sm font-bold text-[#0F4C5C]">
+                <Icone nome="mapPin" className="h-4 w-4" />
                 Cidade base
               </label>
+
               <select
                 value={cidadeBase}
                 onChange={(event) => setCidadeBase(event.target.value)}
@@ -568,9 +975,11 @@ export default function CriarRoteiroPage() {
             </div>
 
             <div>
-              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+              <label className="font-heading flex items-center gap-2 text-sm font-bold text-[#0F4C5C]">
+                <Icone nome="timer" className="h-4 w-4" />
                 Tempo disponível: {tempoDisponivel}h
               </label>
+
               <input
                 type="range"
                 min={2}
@@ -584,9 +993,11 @@ export default function CriarRoteiroPage() {
             </div>
 
             <div>
-              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+              <label className="font-heading flex items-center gap-2 text-sm font-bold text-[#0F4C5C]">
+                <Icone nome="calendar" className="h-4 w-4" />
                 Horário inicial
               </label>
+
               <input
                 type="time"
                 value={horarioInicio}
@@ -596,9 +1007,11 @@ export default function CriarRoteiroPage() {
             </div>
 
             <div>
-              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+              <label className="font-heading flex items-center gap-2 text-sm font-bold text-[#0F4C5C]">
+                <Icone nome="car" className="h-4 w-4" />
                 Transporte
               </label>
+
               <select
                 value={transporte}
                 onChange={(event) => setTransporte(event.target.value)}
@@ -613,9 +1026,11 @@ export default function CriarRoteiroPage() {
             </div>
 
             <div>
-              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+              <label className="font-heading flex items-center gap-2 text-sm font-bold text-[#0F4C5C]">
+                <Icone nome="wallet" className="h-4 w-4" />
                 Orçamento
               </label>
+
               <select
                 value={orcamento}
                 onChange={(event) => setOrcamento(event.target.value)}
@@ -630,9 +1045,11 @@ export default function CriarRoteiroPage() {
             </div>
 
             <div>
-              <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+              <label className="font-heading flex items-center gap-2 text-sm font-bold text-[#0F4C5C]">
+                <Icone nome="activity" className="h-4 w-4" />
                 Ritmo
               </label>
+
               <select
                 value={ritmo}
                 onChange={(event) => setRitmo(event.target.value)}
@@ -647,7 +1064,8 @@ export default function CriarRoteiroPage() {
             </div>
 
             <div>
-              <p className="font-heading text-sm font-bold text-[#0F4C5C]">
+              <p className="font-heading flex items-center gap-2 text-sm font-bold text-[#0F4C5C]">
+                <Icone nome="spark" className="h-4 w-4" />
                 Interesses
               </p>
 
@@ -662,10 +1080,11 @@ export default function CriarRoteiroPage() {
                       onClick={() => alternarInteresse(categoria)}
                       className={
                         ativo
-                          ? "font-heading rounded-full bg-[#10B981] px-4 py-2 text-xs font-bold text-white"
-                          : "font-heading rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-[#45617A] transition hover:border-[#10B981] hover:text-[#10B981]"
+                          ? "font-heading inline-flex items-center gap-2 rounded-full bg-[#10B981] px-4 py-2 text-xs font-bold text-white"
+                          : "font-heading inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-[#45617A] transition hover:border-[#10B981] hover:text-[#10B981]"
                       }
                     >
+                      {ativo && <Icone nome="check" className="h-3.5 w-3.5" />}
                       {categoria}
                     </button>
                   );
@@ -680,10 +1099,13 @@ export default function CriarRoteiroPage() {
                 onChange={(event) => setIncluirAlmoco(event.target.checked)}
                 className="mt-1"
               />
+
               <span>
-                <span className="font-heading block text-sm font-bold text-[#0F4C5C]">
+                <span className="font-heading flex items-center gap-2 text-sm font-bold text-[#0F4C5C]">
+                  <Icone nome="utensils" className="h-4 w-4" />
                   Incluir parada para almoço
                 </span>
+
                 <span className="mt-1 block text-xs leading-5 text-[#45617A]">
                   O sistema tenta encaixar uma opção gastronômica se houver
                   tempo disponível.
@@ -700,10 +1122,13 @@ export default function CriarRoteiroPage() {
                 }
                 className="mt-1"
               />
+
               <span>
-                <span className="font-heading block text-sm font-bold text-[#0F4C5C]">
+                <span className="font-heading flex items-center gap-2 text-sm font-bold text-[#0F4C5C]">
+                  <Icone nome="selection" className="h-4 w-4" />
                   Priorizar lugares selecionados
                 </span>
+
                 <span className="mt-1 block text-xs leading-5 text-[#45617A]">
                   Usa os locais marcados na página Explorar como prioridade.
                 </span>
@@ -711,10 +1136,12 @@ export default function CriarRoteiroPage() {
             </label>
 
             <button
+              type="button"
               onClick={gerarRoteiro}
               disabled={carregando}
-              className="font-heading w-full rounded-full bg-[#0F4C5C] px-6 py-4 text-sm font-black text-white transition hover:bg-[#10B981] disabled:cursor-not-allowed disabled:opacity-60"
+              className="font-heading inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0F4C5C] px-6 py-4 text-sm font-black text-white transition hover:bg-[#10B981] disabled:cursor-not-allowed disabled:opacity-60"
             >
+              <Icone nome="route" className="h-4 w-4" />
               {carregando ? "Carregando lugares..." : "Gerar roteiro"}
             </button>
           </div>
@@ -723,16 +1150,22 @@ export default function CriarRoteiroPage() {
         <section className="space-y-6">
           <div className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div>
-                <h2 className="font-heading text-2xl font-black text-[#0F2433]">
-                  Seleção da página Explorar
-                </h2>
+              <div className="flex items-start gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#10B981]/10 text-[#0F4C5C]">
+                  <Icone nome="selection" />
+                </div>
 
-                <p className="mt-2 text-sm leading-6 text-[#45617A]">
-                  {lugaresSelecionadosDetalhados.length > 0
-                    ? `${lugaresSelecionadosDetalhados.length} lugar(es) selecionado(s) serão considerados na geração.`
-                    : "Nenhum lugar foi selecionado ainda. Você pode gerar um roteiro automático ou escolher lugares em Explorar."}
-                </p>
+                <div>
+                  <h2 className="font-heading text-2xl font-black text-[#0F2433]">
+                    Seleção da página Explorar
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-[#45617A]">
+                    {lugaresSelecionadosDetalhados.length > 0
+                      ? `${lugaresSelecionadosDetalhados.length} lugar(es) selecionado(s) serão considerados na geração.`
+                      : "Nenhum lugar foi selecionado ainda. Você pode gerar um roteiro automático ou escolher lugares em Explorar."}
+                  </p>
+                </div>
               </div>
 
               <Link
@@ -748,8 +1181,9 @@ export default function CriarRoteiroPage() {
                 {lugaresSelecionadosDetalhados.map((lugar) => (
                   <span
                     key={lugar.id}
-                    className="rounded-full bg-[#10B981]/10 px-3 py-2 text-xs font-bold text-[#0F4C5C]"
+                    className="inline-flex items-center gap-2 rounded-full bg-[#10B981]/10 px-3 py-2 text-xs font-bold text-[#0F4C5C]"
                   >
+                    <Icone nome="mapPin" className="h-3.5 w-3.5" />
                     {lugar.nome}
                   </span>
                 ))}
@@ -771,8 +1205,8 @@ export default function CriarRoteiroPage() {
 
           {roteiro.length === 0 ? (
             <div className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-8 text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-[#F2C98A]/50 text-3xl">
-                🧭
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-[#F2C98A]/35 text-[#0F4C5C]">
+                <Icone nome="compass" className="h-8 w-8" />
               </div>
 
               <h2 className="font-heading mt-5 text-2xl font-black text-[#0F2433]">
@@ -788,36 +1222,56 @@ export default function CriarRoteiroPage() {
             <>
               <div className="grid gap-4 md:grid-cols-4">
                 <div className="rounded-[1.5rem] bg-white p-5 shadow-sm">
-                  <p className="font-heading text-xs font-bold text-[#45617A]">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#10B981]/10 text-[#0F4C5C]">
+                    <Icone nome="clock" className="h-5 w-5" />
+                  </div>
+
+                  <p className="font-heading mt-4 text-xs font-bold text-[#45617A]">
                     Tempo nos locais
                   </p>
+
                   <p className="font-heading mt-2 text-2xl font-black text-[#0F4C5C]">
                     {resumo.totalVisitas} min
                   </p>
                 </div>
 
                 <div className="rounded-[1.5rem] bg-white p-5 shadow-sm">
-                  <p className="font-heading text-xs font-bold text-[#45617A]">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#10B981]/10 text-[#0F4C5C]">
+                    <Icone nome="move" className="h-5 w-5" />
+                  </div>
+
+                  <p className="font-heading mt-4 text-xs font-bold text-[#45617A]">
                     Deslocamento
                   </p>
+
                   <p className="font-heading mt-2 text-2xl font-black text-[#0F4C5C]">
                     {resumo.totalDeslocamento} min
                   </p>
                 </div>
 
                 <div className="rounded-[1.5rem] bg-white p-5 shadow-sm">
-                  <p className="font-heading text-xs font-bold text-[#45617A]">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#10B981]/10 text-[#0F4C5C]">
+                    <Icone nome="wallet" className="h-5 w-5" />
+                  </div>
+
+                  <p className="font-heading mt-4 text-xs font-bold text-[#45617A]">
                     Custo médio
                   </p>
+
                   <p className="font-heading mt-2 text-2xl font-black text-[#0F4C5C]">
                     R$ {resumo.custoEstimado}
                   </p>
                 </div>
 
                 <div className="rounded-[1.5rem] bg-white p-5 shadow-sm">
-                  <p className="font-heading text-xs font-bold text-[#45617A]">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#10B981]/10 text-[#0F4C5C]">
+                    <Icone nome="activity" className="h-5 w-5" />
+                  </div>
+
+                  <p className="font-heading mt-4 text-xs font-bold text-[#45617A]">
                     Nível
                   </p>
+
                   <p className="font-heading mt-2 text-lg font-black text-[#0F4C5C]">
                     {resumo.nivel}
                   </p>
@@ -830,6 +1284,7 @@ export default function CriarRoteiroPage() {
                     <h2 className="font-heading text-2xl font-black text-[#0F2433]">
                       Roteiro sugerido
                     </h2>
+
                     <p className="mt-2 text-sm text-[#45617A]">
                       Sugestão organizada de acordo com suas preferências de
                       viagem.
@@ -837,9 +1292,11 @@ export default function CriarRoteiroPage() {
                   </div>
 
                   <button
+                    type="button"
                     onClick={salvarRoteiro}
-                    className="font-heading rounded-full bg-[#10B981] px-6 py-3 text-sm font-black text-white transition hover:bg-[#0F4C5C]"
+                    className="font-heading inline-flex items-center justify-center gap-2 rounded-full bg-[#10B981] px-6 py-3 text-sm font-black text-white transition hover:bg-[#0F4C5C]"
                   >
+                    <Icone nome="save" className="h-4 w-4" />
                     Salvar roteiro
                   </button>
                 </div>
@@ -856,7 +1313,9 @@ export default function CriarRoteiroPage() {
                         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                           <div>
                             <span className="font-heading rounded-full bg-white px-3 py-1 text-xs font-bold text-[#0F4C5C]">
-                              Parada {index + 1} • {parada.lugar.categoria}
+                              Parada {index + 1}{" "}
+                              <span aria-hidden="true">•</span>{" "}
+                              {parada.lugar.categoria}
                             </span>
 
                             <h3 className="font-heading mt-4 text-xl font-black text-[#0F2433]">
@@ -867,23 +1326,35 @@ export default function CriarRoteiroPage() {
                               {parada.lugar.descricao}
                             </p>
 
-                            <p className="mt-3 text-sm font-semibold text-[#45617A]">
-                              {parada.lugar.endereco}
+                            <p className="mt-3 flex items-start gap-2 text-sm font-semibold text-[#45617A]">
+                              <Icone
+                                nome="mapPin"
+                                className="mt-0.5 h-4 w-4 shrink-0 text-[#0F4C5C]"
+                              />
+                              <span>{parada.lugar.endereco}</span>
                             </p>
 
-                            <p className="mt-2 text-xs font-bold text-[#0F4C5C]">
+                            <p className="mt-2 flex items-center gap-2 text-xs font-bold text-[#0F4C5C]">
+                              <Icone nome="clock" className="h-4 w-4" />
                               Horário ideal: {parada.lugar.horarioIdeal}
                             </p>
 
                             {avisosDaParada.length > 0 && (
                               <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-4">
-                                <p className="font-heading text-xs font-black text-yellow-800">
+                                <p className="font-heading flex items-center gap-2 text-xs font-black text-yellow-800">
+                                  <Icone nome="warning" className="h-4 w-4" />
                                   Atenção ao horário
                                 </p>
 
-                                <ul className="mt-2 space-y-1 text-xs font-semibold leading-5 text-yellow-800">
+                                <ul className="mt-2 space-y-2 text-xs font-semibold leading-5 text-yellow-800">
                                   {avisosDaParada.map((aviso) => (
-                                    <li key={aviso}>• {aviso}</li>
+                                    <li key={aviso} className="flex gap-2">
+                                      <Icone
+                                        nome="warning"
+                                        className="h-4 w-4 shrink-0"
+                                      />
+                                      <span>{aviso}</span>
+                                    </li>
                                   ))}
                                 </ul>
                               </div>
@@ -891,12 +1362,15 @@ export default function CriarRoteiroPage() {
                           </div>
 
                           <div className="min-w-40 rounded-2xl bg-white p-4 text-sm">
-                            <p className="font-heading font-black text-[#0F4C5C]">
+                            <p className="font-heading flex items-center gap-2 font-black text-[#0F4C5C]">
+                              <Icone nome="calendar" className="h-4 w-4" />
                               {parada.chegada} - {parada.saida}
                             </p>
+
                             <p className="mt-2 text-[#45617A]">
                               Deslocamento: {parada.deslocamentoAntes} min
                             </p>
+
                             <p className="mt-1 text-[#45617A]">
                               No local: {parada.lugar.tempoSugeridoMin} min
                             </p>

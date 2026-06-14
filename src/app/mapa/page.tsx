@@ -33,6 +33,19 @@ const nomesModos: Record<ModoTransporte, string> = {
   transit: "Transporte público",
 };
 
+function IconeEstrela({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="m12 3 2.7 5.47 6.03.88-4.36 4.25 1.03 6-5.4-2.84-5.4 2.84 1.03-6-4.36-4.25 6.03-.88L12 3Z" />
+    </svg>
+  );
+}
+
 function textoQuantidade(valor: number, singular: string, plural: string) {
   return valor === 1 ? `${valor} ${singular}` : `${valor} ${plural}`;
 }
@@ -473,7 +486,10 @@ export default function MapaPage() {
                     </span>
 
                     <span className="font-heading rounded-full bg-white/20 px-3 py-1 text-xs font-bold text-white backdrop-blur">
-                      ★ {lugarFoco.nota.toFixed(1)}
+                      <span className="inline-flex items-center gap-1">
+                        <IconeEstrela className="h-4 w-4 text-amber-400" />
+                        {lugarFoco.nota.toFixed(1)}
+                      </span>
                     </span>
                   </div>
 

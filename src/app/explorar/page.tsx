@@ -62,6 +62,43 @@ type Recomendacao = {
   motivos: string[];
 };
 
+type IconeNome = "star" | "check";
+
+function Icone({
+  nome,
+  className = "h-4 w-4",
+}: {
+  nome: IconeNome;
+  className?: string;
+}) {
+  if (nome === "star") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className={className}
+        aria-hidden="true"
+      >
+        <path d="m12 3 2.7 5.47 6.03.88-4.36 4.25 1.03 6-5.4-2.84-5.4 2.84 1.03-6-4.36-4.25 6.03-.88L12 3Z" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`${className} stroke-current`}
+      aria-hidden="true"
+    >
+      <path d="m5 12 4 4L19 6" />
+    </svg>
+  );
+}
+
 function carregarLista<T>(chave: string): T[] {
   if (typeof window === "undefined") {
     return [];
@@ -406,21 +443,38 @@ export default function ExplorarPage() {
     <main className="min-h-screen bg-[#F5F7F8] text-[#0F2433]">
       <Header />
 
-      <section className="soft-grid border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-5 py-12">
-          <div className="max-w-4xl">
-            <span className="font-heading rounded-full bg-[#10B981]/10 px-4 py-2 text-sm font-bold text-[#0F4C5C]">
-              Explorar a Paraíba
-            </span>
+      <section className="hero-gradient text-white">
+        <div className="mx-auto max-w-7xl px-5 py-14 md:py-16">
+          <div className="grid gap-8 lg:grid-cols-[1fr_340px] lg:items-center">
+            <div className="max-w-4xl">
+              <span className="font-heading rounded-full bg-white/20 px-4 py-2 text-sm font-bold text-white backdrop-blur">
+                Explorar a Paraíba
+              </span>
 
-            <h1 className="font-heading mt-6 text-4xl font-black leading-tight text-[#0F2433] md:text-6xl">
-              Descubra lugares, experiências e roteiros para sua viagem.
-            </h1>
+              <h1 className="font-heading mt-6 text-4xl font-black leading-tight md:text-6xl">
+                Descubra lugares, experiências e roteiros para sua viagem.
+              </h1>
 
-            <p className="mt-5 text-lg leading-8 text-[#45617A]">
-              Encontre praias, centros culturais, experiências gastronômicas,
-              natureza e vivências locais para montar um roteiro personalizado.
-            </p>
+              <p className="mt-5 max-w-3xl text-lg leading-8 text-white/90">
+                Encontre praias, centros culturais, experiências gastronômicas,
+                natureza e vivências locais para montar um roteiro personalizado.
+              </p>
+            </div>
+
+            <div className="rounded-[2rem] border border-white/20 bg-white/15 p-6 backdrop-blur">
+              <p className="font-heading text-sm font-bold text-white/80">
+                Catálogo turístico
+              </p>
+
+              <p className="font-heading mt-3 text-4xl font-black text-white">
+                {lugares.length}
+              </p>
+
+              <p className="mt-3 text-sm leading-6 text-white/85">
+                local(is) disponíveis para explorar, selecionar e incluir em
+                roteiros personalizados.
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -620,8 +674,15 @@ export default function ExplorarPage() {
                       </h3>
 
                       <p className="mt-2 text-sm font-semibold text-[#0F4C5C]">
-                        {recomendacao.lugar.cidade} • ★{" "}
-                        {recomendacao.lugar.nota.toFixed(1)}
+                        {recomendacao.lugar.cidade}{" "}
+                        <span aria-hidden="true">•</span>{" "}
+                        <span className="inline-flex items-center gap-1">
+                          <Icone
+                            nome="star"
+                            className="h-4 w-4 text-amber-500"
+                          />
+                          {recomendacao.lugar.nota.toFixed(1)}
+                        </span>
                       </p>
 
                       <div className="mt-4 rounded-2xl bg-white p-4">
@@ -631,7 +692,12 @@ export default function ExplorarPage() {
 
                         <ul className="mt-2 space-y-1 text-xs leading-5 text-[#45617A]">
                           {recomendacao.motivos.map((motivo) => (
-                            <li key={motivo}>• {motivo}</li>
+                            <li key={motivo} className="flex gap-2">
+                              <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#10B981]/10 text-[#0F4C5C]">
+                                <Icone nome="check" className="h-3 w-3" />
+                              </span>
+                              <span>{motivo}</span>
+                            </li>
                           ))}
                         </ul>
                       </div>
@@ -755,7 +821,13 @@ export default function ExplorarPage() {
                         </p>
 
                         <p className="font-heading mt-1 font-black text-[#0F4C5C]">
-                          ★ {lugar.nota.toFixed(1)}
+                          <span className="inline-flex items-center gap-1">
+                            <Icone
+                              nome="star"
+                              className="h-4 w-4 text-amber-500"
+                            />
+                            {lugar.nota.toFixed(1)}
+                          </span>
                         </p>
                       </div>
 

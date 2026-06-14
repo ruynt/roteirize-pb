@@ -32,6 +32,19 @@ const nomesAcessibilidade = {
   ALTA: "Alta",
 };
 
+function IconeEstrela({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="m12 3 2.7 5.47 6.03.88-4.36 4.25 1.03 6-5.4-2.84-5.4 2.84 1.03-6-4.36-4.25 6.03-.88L12 3Z" />
+    </svg>
+  );
+}
+
 function classeImagem(imagemClasse?: string) {
   const classe = String(imagemClasse ?? "").trim();
 
@@ -100,7 +113,10 @@ export default async function LugarPage({ params }: LugarPageProps) {
               </span>
 
               <span className="font-heading rounded-full bg-[#F2C98A] px-4 py-2 text-sm font-black text-[#0F4C5C] shadow-sm">
-                ★ {lugar.rating.toFixed(1)}
+                <span className="inline-flex items-center gap-1">
+                  <IconeEstrela className="h-4 w-4" />
+                  {lugar.rating.toFixed(1)}
+                </span>
               </span>
             </div>
 
@@ -179,7 +195,10 @@ export default async function LugarPage({ params }: LugarPageProps) {
 
                 <div className="shrink-0 rounded-3xl bg-[#10B981]/10 p-5 text-center">
                   <p className="font-heading text-3xl font-black text-[#0F4C5C]">
-                    ★ {lugar.rating.toFixed(1)}
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <IconeEstrela className="h-7 w-7 text-amber-500" />
+                      {lugar.rating.toFixed(1)}
+                    </span>
                   </p>
 
                   <p className="mt-1 text-xs font-bold text-[#45617A]">
@@ -328,7 +347,10 @@ export default async function LugarPage({ params }: LugarPageProps) {
             <div className="mt-6 grid gap-4 md:grid-cols-3">
               <div className="rounded-3xl bg-slate-50 p-5">
                 <p className="font-heading text-4xl font-black text-[#0F4C5C]">
-                  ★ {lugar.rating.toFixed(1)}
+                  <span className="inline-flex items-center gap-2">
+                    <IconeEstrela className="h-8 w-8 text-amber-500" />
+                    {lugar.rating.toFixed(1)}
+                  </span>
                 </p>
 
                 <p className="mt-2 text-sm text-[#45617A]">

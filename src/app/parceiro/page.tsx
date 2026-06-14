@@ -125,6 +125,22 @@ function textoAjudaStatus(status: SolicitacaoParceiro["statusOriginal"]) {
   return "A equipe ainda está analisando esta solicitação.";
 }
 
+function IconeCheck({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`${className} stroke-current`}
+      aria-hidden="true"
+    >
+      <path d="m5 12 4 4L19 6" />
+    </svg>
+  );
+}
+
 export default function ParceiroPage() {
   const [formulario, setFormulario] =
     useState<FormularioParceiro>(formularioInicial);
@@ -541,8 +557,8 @@ export default function ParceiroPage() {
             <div className="mt-5 space-y-4">
               {beneficios.map((beneficio) => (
                 <div key={beneficio} className="flex gap-3">
-                  <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#10B981]/10 text-xs font-black text-[#0F4C5C]">
-                    ✓
+                  <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#10B981]/10 text-[#0F4C5C]">
+                    <IconeCheck className="h-3.5 w-3.5" />
                   </div>
 
                   <p className="text-sm leading-6 text-[#45617A]">
