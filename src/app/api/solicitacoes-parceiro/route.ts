@@ -39,7 +39,21 @@ function formatarStatus(valor: string) {
 
 export async function GET() {
   try {
+    const usuario = await getCurrentUser();
+
+    const where =
+      usuario?.role === "ADMIN"
+        ? {}
+        : usuario?.role === "PARTNER"
+          ? {
+              userId: usuario.id,
+            }
+          : {
+              id: "__sem_resultados__",
+            };
+
     const solicitacoes = await prisma.partnerRequest.findMany({
+      where,
       include: {
         user: {
           select: {

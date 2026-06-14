@@ -136,6 +136,7 @@ export default function ExplorarPage() {
   const [categoriaSelecionada, setCategoriaSelecionada] = useState("Todas");
   const [cidadeSelecionada, setCidadeSelecionada] = useState("Todas");
   const [custoSelecionado, setCustoSelecionado] = useState("Todos");
+  const [mostrarSomenteDestaques, setMostrarSomenteDestaques] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
 
@@ -357,11 +358,32 @@ export default function ExplorarPage() {
       const combinaCusto =
         custoSelecionado === "Todos" || lugar.custo === custoSelecionado;
 
-      return combinaBusca && combinaCategoria && combinaCidade && combinaCusto;
+      const combinaDestaque = !mostrarSomenteDestaques || Boolean(lugar.destaque);
+
+      return (
+        combinaBusca &&
+        combinaCategoria &&
+        combinaCidade &&
+        combinaCusto &&
+        combinaDestaque
+      );
     });
-  }, [busca, categoriaSelecionada, cidadeSelecionada, custoSelecionado, lugares]);
+  }, [
+    busca,
+    categoriaSelecionada,
+    cidadeSelecionada,
+    custoSelecionado,
+    mostrarSomenteDestaques,
+    lugares,
+  ]);
 
   function alternarLugarSelecionado(lugarId: string) {
+    if (lugarId === "__limpar__") {
+      setLugaresSelecionados([]);
+      localStorage.setItem(CHAVE_LUGARES_SELECIONADOS, JSON.stringify([]));
+      return;
+    }
+
     const jaSelecionado = lugaresSelecionados.includes(lugarId);
 
     const novaLista = jaSelecionado
@@ -377,6 +399,7 @@ export default function ExplorarPage() {
     setCategoriaSelecionada("Todas");
     setCidadeSelecionada("Todas");
     setCustoSelecionado("Todos");
+    setMostrarSomenteDestaques(false);
   }
 
   return (
@@ -457,6 +480,33 @@ export default function ExplorarPage() {
             </button>
           </div>
 
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setMostrarSomenteDestaques(false)}
+              className={
+                !mostrarSomenteDestaques
+                  ? "font-heading rounded-full bg-[#0F4C5C] px-4 py-2 text-xs font-black text-white"
+                  : "font-heading rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black text-[#0F4C5C] transition hover:border-[#10B981] hover:text-[#10B981]"
+              }
+            >
+              Todos os locais
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMostrarSomenteDestaques(true)}
+              disabled={totalDestaques === 0}
+              className={
+                mostrarSomenteDestaques
+                  ? "font-heading rounded-full bg-[#F2C98A] px-4 py-2 text-xs font-black text-[#0F4C5C]"
+                  : "font-heading rounded-full border border-[#F2C98A]/70 bg-[#F2C98A]/20 px-4 py-2 text-xs font-black text-[#0F4C5C] transition hover:bg-[#F2C98A]/40 disabled:cursor-not-allowed disabled:opacity-50"
+              }
+            >
+              Locais em destaque
+            </button>
+          </div>
+
           <div className="mt-5 flex flex-col gap-3 text-sm text-[#45617A] md:flex-row md:items-center md:justify-between">
             <p>
               {carregando
@@ -478,8 +528,8 @@ export default function ExplorarPage() {
               {totalDestaques > 0
                 ? ` • ${textoQuantidade(
                     totalDestaques,
-                    "destaque ativo",
-                    "destaques ativos"
+                    "local em destaque",
+                    "locais em destaque"
                   )}`
                 : ""}
               .
@@ -633,6 +683,9 @@ export default function ExplorarPage() {
 
             <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[#45617A]">
               Tente mudar os filtros ou limpar a busca para ver mais opções.
+              {mostrarSomenteDestaques
+                ? " Você também pode voltar para todos os locais."
+                : ""}
             </p>
 
             <button
@@ -792,12 +845,22 @@ export default function ExplorarPage() {
                 </p>
               </div>
 
-              <Link
-                href="/criar-roteiro"
-                className="font-heading rounded-full bg-[#10B981] px-6 py-3 text-center text-sm font-black text-white transition hover:bg-[#0F4C5C]"
-              >
-                Criar roteiro
-              </Link>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => alternarLugarSelecionado("__limpar__")}
+                  className="font-heading rounded-full border border-slate-200 px-6 py-3 text-center text-sm font-black text-[#0F4C5C] transition hover:border-red-200 hover:text-red-500"
+                >
+                  Limpar seleção
+                </button>
+
+                <Link
+                  href="/criar-roteiro"
+                  className="font-heading rounded-full bg-[#10B981] px-6 py-3 text-center text-sm font-black text-white transition hover:bg-[#0F4C5C]"
+                >
+                  Criar roteiro
+                </Link>
+              </div>
             </div>
           </div>
         )}

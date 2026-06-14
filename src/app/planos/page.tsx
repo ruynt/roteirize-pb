@@ -2,14 +2,7 @@
 
 import Header from "@/components/Header";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-
-type Usuario = {
-  id: string;
-  name: string;
-  email: string;
-  role: "TOURIST" | "PARTNER" | "ADMIN";
-};
+import { useEffect, useMemo, useState } from "react";
 
 type Assinatura = {
   id: string;
@@ -20,30 +13,42 @@ type Assinatura = {
   paidAt: string | null;
   expiresAt: string | null;
   createdAt: string;
+  updatedAt: string | null;
+  active: boolean;
+  expired: boolean;
 };
 
-function formatarMoeda(valorCentavos: number) {
+type ResumoPlano = {
+  subscription: Assinatura | null;
+  active: boolean;
+  history: Assinatura[];
+  message?: string;
+};
+
+type MetodoPagamento = "PIX" | "CARTAO";
+
+function formatarValor(centavos: number) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
-  }).format(valorCentavos / 100);
+  }).format(centavos / 100);
 }
 
-function formatarData(data: string | null) {
+function formatarData(data?: string | null) {
   if (!data) {
     return "Não informado";
   }
 
-  return new Date(data).toLocaleDateString("pt-BR", {
+  return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  });
+  }).format(new Date(data));
 }
 
-function traduzirMetodo(metodo: string | null) {
+function formatarMetodo(metodo?: string | null) {
   if (metodo === "PIX") {
-    return "Pix";
+    return "PIX";
   }
 
   if (metodo === "CARTAO") {
@@ -53,20 +58,78 @@ function traduzirMetodo(metodo: string | null) {
   return "Não informado";
 }
 
-export default function PlanosPage() {
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [usuarioAutorizado, setUsuarioAutorizado] = useState(false);
-  const [verificandoUsuario, setVerificandoUsuario] = useState(true);
+function formatarStatus(assinatura: Assinatura | null) {
+  if (!assinatura) {
+    return "Inativo";
+  }
 
-  const [assinatura, setAssinatura] = useState<Assinatura | null>(null);
-  const [assinaturaAtiva, setAssinaturaAtiva] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"PIX" | "CARTAO">("PIX");
-  const [carregando, setCarregando] = useState(false);
+  if (assinatura.active) {
+    return "Ativo";
+  }
+
+  if (assinatura.status === "CANCELADO") {
+    return "Cancelado";
+  }
+
+  if (assinatura.expired) {
+    return "Expirado";
+  }
+
+  if (assinatura.status === "PENDENTE") {
+    return "Pendente";
+  }
+
+  return "Inativo";
+}
+
+function classeStatus(assinatura: Assinatura | null) {
+  const status = formatarStatus(assinatura);
+
+  if (status === "Ativo") {
+    return "bg-[#10B981]/10 text-[#0F4C5C]";
+  }
+
+  if (status === "Cancelado" || status === "Expirado") {
+    return "bg-red-50 text-red-600";
+  }
+
+  if (status === "Pendente") {
+    return "bg-[#F2C98A]/30 text-[#0F4C5C]";
+  }
+
+  return "bg-slate-100 text-[#45617A]";
+}
+
+export default function PlanosPage() {
+  const [resumo, setResumo] = useState<ResumoPlano>({
+    subscription: null,
+    active: false,
+    history: [],
+  });
+
+  const [metodoPagamento, setMetodoPagamento] =
+    useState<MetodoPagamento>("PIX");
+  const [carregando, setCarregando] = useState(true);
   const [processando, setProcessando] = useState(false);
   const [erro, setErro] = useState("");
   const [mensagem, setMensagem] = useState("");
 
-  async function carregarAssinatura() {
+  const assinaturaAtual = resumo.subscription;
+  const statusAtual = formatarStatus(assinaturaAtual);
+  const planoAtivo = resumo.active;
+
+  const diasRestantes = useMemo(() => {
+    if (!assinaturaAtual?.expiresAt || !assinaturaAtual.active) {
+      return 0;
+    }
+
+    const diferenca =
+      new Date(assinaturaAtual.expiresAt).getTime() - Date.now();
+
+    return Math.max(0, Math.ceil(diferenca / (1000 * 60 * 60 * 24)));
+  }, [assinaturaAtual]);
+
+  async function carregarPlano() {
     try {
       setCarregando(true);
       setErro("");
@@ -81,8 +144,11 @@ export default function PlanosPage() {
         throw new Error(dados.error ?? "Não foi possível carregar o plano.");
       }
 
-      setAssinatura(dados.subscription ?? null);
-      setAssinaturaAtiva(Boolean(dados.active));
+      setResumo({
+        subscription: dados.subscription ?? null,
+        active: Boolean(dados.active),
+        history: dados.history ?? [],
+      });
     } catch (error) {
       console.error(error);
 
@@ -97,50 +163,10 @@ export default function PlanosPage() {
   }
 
   useEffect(() => {
-    async function verificarUsuario() {
-      try {
-        setVerificandoUsuario(true);
-
-        const resposta = await fetch("/api/auth/me", {
-          cache: "no-store",
-        });
-
-        if (!resposta.ok) {
-          setUsuario(null);
-          setUsuarioAutorizado(false);
-          return;
-        }
-
-        const dados = await resposta.json();
-        const usuarioAtual = dados.user as Usuario | null;
-
-        if (!usuarioAtual) {
-          setUsuario(null);
-          setUsuarioAutorizado(false);
-          return;
-        }
-
-        setUsuario(usuarioAtual);
-
-        if (usuarioAtual.role === "PARTNER" || usuarioAtual.role === "ADMIN") {
-          setUsuarioAutorizado(true);
-          await carregarAssinatura();
-        } else {
-          setUsuarioAutorizado(false);
-        }
-      } catch (error) {
-        console.error(error);
-        setUsuario(null);
-        setUsuarioAutorizado(false);
-      } finally {
-        setVerificandoUsuario(false);
-      }
-    }
-
-    verificarUsuario();
+    carregarPlano();
   }, []);
 
-  async function ativarPlano() {
+  async function ativarOuRenovarPlano() {
     try {
       setProcessando(true);
       setErro("");
@@ -152,26 +178,80 @@ export default function PlanosPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          paymentMethod,
+          paymentMethod: metodoPagamento,
         }),
       });
 
       const dados = await resposta.json();
 
       if (!resposta.ok) {
-        throw new Error(dados.error ?? "Não foi possível ativar o plano.");
+        throw new Error(dados.error ?? "Não foi possível processar o plano.");
       }
 
-      setAssinatura(dados.subscription);
-      setAssinaturaAtiva(Boolean(dados.active));
-      setMensagem("Plano Destaque ativado com sucesso em modo teste.");
+      setResumo({
+        subscription: dados.subscription ?? null,
+        active: Boolean(dados.active),
+        history: dados.history ?? [],
+      });
+
+      setMensagem(dados.message ?? "Plano atualizado com sucesso.");
     } catch (error) {
       console.error(error);
 
       if (error instanceof Error) {
         setErro(error.message);
       } else {
-        setErro("Não foi possível ativar o plano.");
+        setErro("Não foi possível processar o plano.");
+      }
+    } finally {
+      setProcessando(false);
+    }
+  }
+
+  async function cancelarPlano() {
+    const confirmar = confirm(
+      "Tem certeza que deseja cancelar o Plano Destaque? Seus locais deixarão de aparecer como destaque."
+    );
+
+    if (!confirmar) {
+      return;
+    }
+
+    try {
+      setProcessando(true);
+      setErro("");
+      setMensagem("");
+
+      const resposta = await fetch("/api/pagamentos/destaque", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          acao: "cancelar",
+        }),
+      });
+
+      const dados = await resposta.json();
+
+      if (!resposta.ok) {
+        throw new Error(dados.error ?? "Não foi possível cancelar o plano.");
+      }
+
+      setResumo({
+        subscription: dados.subscription ?? null,
+        active: Boolean(dados.active),
+        history: dados.history ?? [],
+      });
+
+      setMensagem(dados.message ?? "Plano cancelado com sucesso.");
+    } catch (error) {
+      console.error(error);
+
+      if (error instanceof Error) {
+        setErro(error.message);
+      } else {
+        setErro("Não foi possível cancelar o plano.");
       }
     } finally {
       setProcessando(false);
@@ -182,297 +262,372 @@ export default function PlanosPage() {
     <main className="min-h-screen bg-[#F5F7F8] text-[#0F2433]">
       <Header />
 
-      {verificandoUsuario && (
-        <section className="mx-auto max-w-7xl px-5 py-10">
-          <div className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-8 text-center">
-            <h1 className="font-heading text-2xl font-black text-[#0F2433]">
-              Verificando acesso...
-            </h1>
+      <section className="hero-gradient text-white">
+        <div className="mx-auto max-w-7xl px-5 py-14 md:py-16">
+          <div className="grid gap-8 lg:grid-cols-[1fr_360px] lg:items-center">
+            <div className="max-w-4xl">
+              <span className="font-heading rounded-full bg-white/20 px-4 py-2 text-sm font-bold text-white backdrop-blur">
+                Central do parceiro
+              </span>
 
-            <p className="mt-3 text-sm text-[#45617A]">
-              Aguarde enquanto validamos sua sessão.
-            </p>
-          </div>
-        </section>
-      )}
+              <h1 className="font-heading mt-6 text-4xl font-black leading-tight md:text-6xl">
+                Gerencie seu Plano Destaque.
+              </h1>
 
-      {!verificandoUsuario && !usuarioAutorizado && (
-        <section className="mx-auto max-w-7xl px-5 py-10">
-          <div className="card-shadow rounded-[2rem] border border-red-100 bg-white p-8 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-red-50 text-3xl">
-              🔒
+              <p className="mt-5 max-w-3xl text-lg leading-8 text-white/90">
+                Ative, renove ou cancele a assinatura que aumenta a visibilidade
+                das experiências cadastradas pelo parceiro no Roteirize PB.
+              </p>
+
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <a
+                  href="#gerenciar-plano"
+                  className="font-heading rounded-full bg-white px-6 py-3 text-center text-sm font-black text-[#0F4C5C] transition hover:bg-[#F2C98A]"
+                >
+                  Gerenciar plano
+                </a>
+
+                <Link
+                  href="/parceiro"
+                  className="font-heading rounded-full border border-white/40 bg-white/10 px-6 py-3 text-center text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-[#0F4C5C]"
+                >
+                  Cadastrar experiência
+                </Link>
+              </div>
             </div>
 
-            <h1 className="font-heading mt-5 text-3xl font-black text-[#0F2433]">
-              Área exclusiva para parceiros
-            </h1>
-
-            <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[#45617A]">
-              Entre com uma conta de parceiro local para acessar os planos de
-              destaque da plataforma.
-            </p>
-
-            {usuario && usuario.role === "TOURIST" && (
-              <p className="mx-auto mt-3 max-w-xl rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-[#45617A]">
-                Você está conectado como turista. Para acessar esta área, use
-                uma conta de parceiro local.
+            <div className="rounded-[2rem] border border-white/20 bg-white/15 p-6 backdrop-blur">
+              <p className="font-heading text-sm font-bold text-white/80">
+                Status atual
               </p>
-            )}
 
-            <Link
-              href="/login"
-              className="font-heading mt-6 inline-flex rounded-full bg-[#0F4C5C] px-6 py-3 text-sm font-black text-white transition hover:bg-[#10B981]"
-            >
-              Ir para o login
-            </Link>
+              <div
+                className={`mt-4 inline-flex rounded-full px-4 py-2 font-heading text-sm font-black ${classeStatus(
+                  assinaturaAtual
+                )}`}
+              >
+                {carregando ? "Carregando..." : statusAtual}
+              </div>
+
+              <p className="font-heading mt-5 text-3xl font-black text-white">
+                {planoAtivo ? `${diasRestantes} dias restantes` : "Sem plano ativo"}
+              </p>
+
+              <p className="mt-3 text-sm leading-6 text-white/85">
+                {planoAtivo
+                  ? "Enquanto o plano estiver ativo, os locais vinculados ao parceiro podem aparecer como destaque."
+                  : "Ative o plano para destacar experiências aprovadas no catálogo da plataforma."}
+              </p>
+            </div>
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
-      {!verificandoUsuario && usuarioAutorizado && (
-        <>
-          <section className="soft-grid border-b border-slate-200 bg-white">
-            <div className="mx-auto max-w-7xl px-5 py-12">
-              <div className="max-w-4xl">
-                <span className="font-heading rounded-full bg-[#10B981]/10 px-4 py-2 text-sm font-bold text-[#0F4C5C]">
-                  Planos para parceiros
+      <section
+        id="gerenciar-plano"
+        className="mx-auto grid max-w-7xl gap-8 px-5 py-10 lg:grid-cols-[1fr_420px]"
+      >
+        <div className="space-y-8">
+          <section className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6 md:p-8">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <span className="font-heading rounded-full bg-[#10B981]/10 px-4 py-2 text-xs font-black text-[#0F4C5C]">
+                  Assinatura
                 </span>
 
-                <h1 className="font-heading mt-6 text-4xl font-black leading-tight text-[#0F2433] md:text-6xl">
-                  Destaque sua experiência turística na plataforma.
-                </h1>
+                <h2 className="font-heading mt-4 text-2xl font-black text-[#0F2433]">
+                  Plano Destaque
+                </h2>
 
-                <p className="mt-5 text-lg leading-8 text-[#45617A]">
-                  Parceiros locais podem ativar um plano de destaque para
-                  aumentar a visibilidade dos seus serviços e experiências junto
-                  aos turistas.
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#45617A]">
+                  O plano aumenta a visibilidade dos locais aprovados do
+                  parceiro, exibindo o selo de destaque no catálogo enquanto a
+                  assinatura estiver ativa.
+                </p>
+              </div>
+
+              <div
+                className={`w-fit rounded-full px-4 py-2 font-heading text-sm font-black ${classeStatus(
+                  assinaturaAtual
+                )}`}
+              >
+                {carregando ? "Carregando..." : statusAtual}
+              </div>
+            </div>
+
+            {erro && (
+              <div className="mt-6 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-600">
+                {erro}
+              </div>
+            )}
+
+            {mensagem && (
+              <div className="mt-6 rounded-2xl border border-[#10B981]/20 bg-[#10B981]/10 p-4 text-sm font-semibold text-[#0F4C5C]">
+                {mensagem}
+              </div>
+            )}
+
+            <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-3xl bg-slate-50 p-5">
+                <p className="font-heading text-xs font-bold text-[#45617A]">
+                  Valor
                 </p>
 
-                {usuario && (
-                  <p className="mt-5 inline-flex rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-[#45617A]">
-                    Conectado como {usuario.name}
+                <p className="font-heading mt-2 text-2xl font-black text-[#0F4C5C]">
+                  {formatarValor(2900)}
+                </p>
+
+                <p className="mt-1 text-xs font-semibold text-[#45617A]">
+                  por 30 dias
+                </p>
+              </div>
+
+              <div className="rounded-3xl bg-slate-50 p-5">
+                <p className="font-heading text-xs font-bold text-[#45617A]">
+                  Ativação
+                </p>
+
+                <p className="font-heading mt-2 text-lg font-black text-[#0F4C5C]">
+                  {formatarData(assinaturaAtual?.paidAt)}
+                </p>
+
+                <p className="mt-1 text-xs font-semibold text-[#45617A]">
+                  pagamento confirmado
+                </p>
+              </div>
+
+              <div className="rounded-3xl bg-slate-50 p-5">
+                <p className="font-heading text-xs font-bold text-[#45617A]">
+                  Validade
+                </p>
+
+                <p className="font-heading mt-2 text-lg font-black text-[#0F4C5C]">
+                  {formatarData(assinaturaAtual?.expiresAt)}
+                </p>
+
+                <p className="mt-1 text-xs font-semibold text-[#45617A]">
+                  {planoAtivo ? `${diasRestantes} dias restantes` : "sem validade ativa"}
+                </p>
+              </div>
+
+              <div className="rounded-3xl bg-slate-50 p-5">
+                <p className="font-heading text-xs font-bold text-[#45617A]">
+                  Método
+                </p>
+
+                <p className="font-heading mt-2 text-lg font-black text-[#0F4C5C]">
+                  {formatarMetodo(assinaturaAtual?.paymentMethod)}
+                </p>
+
+                <p className="mt-1 text-xs font-semibold text-[#45617A]">
+                  pagamento em modo teste
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-8 rounded-[1.5rem] border border-[#F2C98A]/60 bg-[#F2C98A]/20 p-5">
+              <h3 className="font-heading text-lg font-black text-[#0F4C5C]">
+                O que o Destaque faz?
+              </h3>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <div className="rounded-2xl bg-white p-4">
+                  <p className="font-heading text-sm font-black text-[#0F2433]">
+                    Selo visual
                   </p>
-                )}
+
+                  <p className="mt-2 text-xs leading-5 text-[#45617A]">
+                    O local aprovado aparece com o selo “Destaque” no catálogo.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-white p-4">
+                  <p className="font-heading text-sm font-black text-[#0F2433]">
+                    Mais visibilidade
+                  </p>
+
+                  <p className="mt-2 text-xs leading-5 text-[#45617A]">
+                    Locais com plano ativo são priorizados na listagem.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-white p-4">
+                  <p className="font-heading text-sm font-black text-[#0F2433]">
+                    Integração automática
+                  </p>
+
+                  <p className="mt-2 text-xs leading-5 text-[#45617A]">
+                    Ao cancelar ou expirar, o local deixa de aparecer como destaque.
+                  </p>
+                </div>
               </div>
             </div>
           </section>
 
-          <section className="mx-auto grid max-w-7xl gap-8 px-5 py-10 lg:grid-cols-[1fr_420px]">
-            <div className="space-y-6">
-              {erro && (
-                <div className="rounded-[2rem] border border-red-100 bg-red-50 p-6 font-semibold text-red-600">
-                  {erro}
-                </div>
-              )}
+          <section className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6 md:p-8">
+            <h2 className="font-heading text-2xl font-black text-[#0F2433]">
+              Histórico de pagamentos
+            </h2>
 
-              {mensagem && (
-                <div className="rounded-[2rem] border border-[#10B981]/20 bg-[#10B981]/10 p-6 font-semibold text-[#0F4C5C]">
-                  {mensagem}
-                </div>
-              )}
+            <p className="mt-2 text-sm leading-6 text-[#45617A]">
+              Acompanhe ativações, renovações e cancelamentos do Plano Destaque.
+            </p>
 
-              <section className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6 md:p-8">
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <span className="font-heading rounded-full bg-[#F2C98A]/40 px-4 py-2 text-sm font-black text-[#0F4C5C]">
-                      Plano Destaque
-                    </span>
-
-                    <h2 className="font-heading mt-5 text-3xl font-black text-[#0F2433]">
-                      Mais visibilidade para parceiros locais
-                    </h2>
-
-                    <p className="mt-3 max-w-2xl text-sm leading-6 text-[#45617A]">
-                      O plano demonstra a estrutura inicial de monetização da
-                      plataforma, permitindo que parceiros locais ativem destaque
-                      para seus serviços e experiências.
-                    </p>
-                  </div>
-
-                  <div className="rounded-[2rem] bg-slate-50 p-5 text-center">
-                    <p className="font-heading text-sm font-bold text-[#45617A]">
-                      Valor teste
-                    </p>
-
-                    <p className="font-heading mt-2 text-4xl font-black text-[#0F4C5C]">
-                      {formatarMoeda(2900)}
-                    </p>
-
-                    <p className="mt-1 text-xs font-semibold text-[#45617A]">
-                      validade de 30 dias
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-8 grid gap-4 md:grid-cols-3">
-                  <div className="rounded-3xl bg-slate-50 p-5">
-                    <p className="font-heading font-black text-[#0F4C5C]">
-                      Destaque comercial
-                    </p>
-
-                    <p className="mt-2 text-sm leading-6 text-[#45617A]">
-                      Base para destacar parceiros dentro da experiência de
-                      exploração turística.
-                    </p>
-                  </div>
-
-                  <div className="rounded-3xl bg-slate-50 p-5">
-                    <p className="font-heading font-black text-[#0F4C5C]">
-                      Monetização
-                    </p>
-
-                    <p className="mt-2 text-sm leading-6 text-[#45617A]">
-                      Mostra uma estratégia de sustentabilidade financeira para
-                      a plataforma.
-                    </p>
-                  </div>
-
-                  <div className="rounded-3xl bg-slate-50 p-5">
-                    <p className="font-heading font-black text-[#0F4C5C]">
-                      Modo teste
-                    </p>
-
-                    <p className="mt-2 text-sm leading-6 text-[#45617A]">
-                      Simula o fluxo de pagamento sem realizar cobranças reais.
-                    </p>
-                  </div>
-                </div>
-              </section>
-
-              <section className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6 md:p-8">
-                <h2 className="font-heading text-2xl font-black text-[#0F2433]">
-                  Ativar plano
-                </h2>
+            {carregando ? (
+              <div className="mt-6 space-y-3">
+                {[1, 2, 3].map((item) => (
+                  <div
+                    key={item}
+                    className="h-20 animate-pulse rounded-3xl bg-slate-100"
+                  />
+                ))}
+              </div>
+            ) : resumo.history.length === 0 ? (
+              <div className="mt-6 rounded-3xl bg-slate-50 p-6 text-center">
+                <p className="font-heading text-lg font-black text-[#0F2433]">
+                  Nenhum pagamento registrado
+                </p>
 
                 <p className="mt-2 text-sm leading-6 text-[#45617A]">
-                  Selecione uma forma de pagamento de teste para ativar o plano.
+                  Ative o Plano Destaque para criar o primeiro registro no
+                  histórico.
                 </p>
-
-                <div className="mt-6 grid gap-3 md:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("PIX")}
-                    className={
-                      paymentMethod === "PIX"
-                        ? "rounded-3xl border border-[#10B981] bg-[#10B981]/10 p-5 text-left"
-                        : "rounded-3xl border border-slate-200 bg-white p-5 text-left transition hover:border-[#10B981]"
-                    }
+              </div>
+            ) : (
+              <div className="mt-6 space-y-3">
+                {resumo.history.map((assinatura) => (
+                  <article
+                    key={assinatura.id}
+                    className="rounded-3xl border border-slate-100 bg-slate-50 p-5"
                   >
-                    <p className="font-heading font-black text-[#0F4C5C]">
-                      Pix teste
-                    </p>
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="font-heading text-base font-black text-[#0F2433]">
+                          {assinatura.planName} —{" "}
+                          {formatarMetodo(assinatura.paymentMethod)}
+                        </p>
 
-                    <p className="mt-2 text-sm leading-6 text-[#45617A]">
-                      Confirmação imediata para demonstração.
-                    </p>
-                  </button>
+                        <p className="mt-1 text-sm leading-6 text-[#45617A]">
+                          {formatarValor(assinatura.amountCents)} • Pago em{" "}
+                          {formatarData(assinatura.paidAt)} • Válido até{" "}
+                          {formatarData(assinatura.expiresAt)}
+                        </p>
+                      </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("CARTAO")}
-                    className={
-                      paymentMethod === "CARTAO"
-                        ? "rounded-3xl border border-[#10B981] bg-[#10B981]/10 p-5 text-left"
-                        : "rounded-3xl border border-slate-200 bg-white p-5 text-left transition hover:border-[#10B981]"
-                    }
-                  >
-                    <p className="font-heading font-black text-[#0F4C5C]">
-                      Cartão teste
-                    </p>
+                      <span
+                        className={`w-fit rounded-full px-4 py-2 font-heading text-xs font-black ${classeStatus(
+                          assinatura
+                        )}`}
+                      >
+                        {formatarStatus(assinatura)}
+                      </span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
 
-                    <p className="mt-2 text-sm leading-6 text-[#45617A]">
-                      Fluxo simulado de autorização de pagamento.
-                    </p>
-                  </button>
-                </div>
+        <aside className="space-y-6">
+          <section className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6">
+            <h2 className="font-heading text-2xl font-black text-[#0F2433]">
+              Pagamento teste
+            </h2>
 
-                <button
-                  type="button"
-                  onClick={ativarPlano}
-                  disabled={processando || carregando}
-                  className="font-heading mt-6 rounded-full bg-[#0F4C5C] px-6 py-4 text-sm font-black text-white transition hover:bg-[#10B981] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {processando
-                    ? "Processando..."
-                    : assinaturaAtiva
-                    ? "Renovar Plano Destaque"
-                    : "Ativar Plano Destaque"}
-                </button>
-              </section>
+            <p className="mt-3 text-sm leading-6 text-[#45617A]">
+              Escolha uma forma de pagamento para ativar ou renovar o Plano
+              Destaque por mais 30 dias.
+            </p>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setMetodoPagamento("PIX")}
+                className={
+                  metodoPagamento === "PIX"
+                    ? "font-heading rounded-2xl border border-[#10B981] bg-[#10B981]/10 px-4 py-4 text-sm font-black text-[#0F4C5C]"
+                    : "font-heading rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-black text-[#45617A] transition hover:border-[#10B981] hover:text-[#0F4C5C]"
+                }
+              >
+                PIX
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMetodoPagamento("CARTAO")}
+                className={
+                  metodoPagamento === "CARTAO"
+                    ? "font-heading rounded-2xl border border-[#10B981] bg-[#10B981]/10 px-4 py-4 text-sm font-black text-[#0F4C5C]"
+                    : "font-heading rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-black text-[#45617A] transition hover:border-[#10B981] hover:text-[#0F4C5C]"
+                }
+              >
+                Cartão
+              </button>
             </div>
 
-            <aside className="space-y-6">
-              <section className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6">
-                <h2 className="font-heading text-2xl font-black text-[#0F2433]">
-                  Status do plano
-                </h2>
+            <button
+              type="button"
+              onClick={ativarOuRenovarPlano}
+              disabled={processando}
+              className="font-heading mt-5 w-full rounded-full bg-[#10B981] px-5 py-4 text-sm font-black text-white transition hover:bg-[#0F4C5C] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {processando
+                ? "Processando..."
+                : planoAtivo
+                  ? "Renovar por mais 30 dias"
+                  : "Ativar Plano Destaque"}
+            </button>
 
-                {carregando ? (
-                  <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-[#45617A]">
-                    Carregando assinatura...
-                  </p>
-                ) : assinatura ? (
-                  <div className="mt-5 space-y-3">
-                    <div
-                      className={
-                        assinaturaAtiva
-                          ? "rounded-3xl bg-[#10B981]/10 p-5"
-                          : "rounded-3xl bg-slate-50 p-5"
-                      }
-                    >
-                      <p className="font-heading text-sm font-black text-[#0F4C5C]">
-                        {assinaturaAtiva ? "Plano ativo" : "Plano inativo"}
-                      </p>
+            {planoAtivo && (
+              <button
+                type="button"
+                onClick={cancelarPlano}
+                disabled={processando}
+                className="font-heading mt-3 w-full rounded-full border border-red-100 bg-white px-5 py-4 text-sm font-black text-red-500 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancelar plano
+              </button>
+            )}
 
-                      <p className="mt-2 text-sm leading-6 text-[#45617A]">
-                        {assinatura.planName}
-                      </p>
-                    </div>
-
-                    <div className="rounded-3xl bg-slate-50 p-5 text-sm leading-6 text-[#45617A]">
-                      <p>
-                        <strong className="text-[#0F4C5C]">Valor:</strong>{" "}
-                        {formatarMoeda(assinatura.amountCents)}
-                      </p>
-
-                      <p>
-                        <strong className="text-[#0F4C5C]">Pagamento:</strong>{" "}
-                        {traduzirMetodo(assinatura.paymentMethod)}
-                      </p>
-
-                      <p>
-                        <strong className="text-[#0F4C5C]">Ativado em:</strong>{" "}
-                        {formatarData(assinatura.paidAt)}
-                      </p>
-
-                      <p>
-                        <strong className="text-[#0F4C5C]">Validade:</strong>{" "}
-                        {formatarData(assinatura.expiresAt)}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-[#45617A]">
-                    Nenhum plano ativo no momento.
-                  </p>
-                )}
-              </section>
-
-              <section className="rounded-[2rem] border border-slate-100 bg-white p-6">
-                <h3 className="font-heading text-xl font-black text-[#0F2433]">
-                  Observação para apresentação
-                </h3>
-
-                <p className="mt-3 text-sm leading-6 text-[#45617A]">
-                  Este fluxo representa o módulo inicial de monetização. Em uma
-                  versão de produção, ele pode ser integrado a provedores de
-                  pagamento como Mercado Pago, Stripe ou outro gateway.
-                </p>
-              </section>
-            </aside>
+            <p className="mt-4 text-xs leading-5 text-[#45617A]">
+              Este fluxo simula o pagamento e ativa o plano imediatamente para
+              fins de demonstração do MVP.
+            </p>
           </section>
-        </>
-      )}
+
+          <section className="rounded-[2rem] bg-[#0F4C5C] p-6 text-white">
+            <h3 className="font-heading text-xl font-black">
+              Fluxo integrado
+            </h3>
+
+            <p className="mt-3 text-sm leading-6 text-white/85">
+              O status do plano é usado automaticamente pelo catálogo. Se o plano
+              estiver ativo, locais aprovados do parceiro podem aparecer como
+              destaque. Se for cancelado ou expirar, o destaque é removido.
+            </p>
+
+            <Link
+              href="/explorar"
+              className="font-heading mt-5 inline-flex w-full justify-center rounded-full bg-white px-5 py-3 text-sm font-black text-[#0F4C5C] transition hover:bg-[#F2C98A]"
+            >
+              Ver no Explorar
+            </Link>
+          </section>
+
+          <section className="rounded-[2rem] border border-[#F2C98A]/60 bg-[#F2C98A]/25 p-6">
+            <h3 className="font-heading text-xl font-black text-[#0F4C5C]">
+              Para produção
+            </h3>
+
+            <p className="mt-3 text-sm leading-6 text-[#45617A]">
+              Em uma versão real, este fluxo poderia ser conectado a um gateway
+              como Mercado Pago, PagBank ou Stripe, mantendo a mesma lógica de
+              ativação do destaque.
+            </p>
+          </section>
+        </aside>
+      </section>
     </main>
   );
 }

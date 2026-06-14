@@ -4,14 +4,9 @@ import { getCurrentUser } from "@/lib/auth";
 import { SubscriptionStatus } from "@/generated/prisma";
 
 const VALOR_PLANO_DESTAQUE = 2900;
+const DIAS_VALIDADE = 30;
 
-function somarDias(data: Date, dias: number) {
-  const novaData = new Date(data);
-  novaData.setDate(novaData.getDate() + dias);
-  return novaData;
-}
-
-function formatarAssinatura(assinatura: {
+type AssinaturaFormatavel = {
   id: string;
   planName: string;
   amountCents: number;
@@ -20,23 +15,23 @@ function formatarAssinatura(assinatura: {
   paidAt: Date | null;
   expiresAt: Date | null;
   createdAt: Date;
-}) {
-  return {
-    id: assinatura.id,
-    planName: assinatura.planName,
-    amountCents: assinatura.amountCents,
-    status: assinatura.status,
-    paymentMethod: assinatura.paymentMethod,
-    paidAt: assinatura.paidAt?.toISOString() ?? null,
-    expiresAt: assinatura.expiresAt?.toISOString() ?? null,
-    createdAt: assinatura.createdAt.toISOString(),
-  };
+  updatedAt?: Date;
+};
+
+function somarDias(data: Date, dias: number) {
+  const novaData = new Date(data);
+  novaData.setDate(novaData.getDate() + dias);
+  return novaData;
 }
 
-function assinaturaEstaAtiva(assinatura: {
+function assinaturaEstaAtiva(assinatura?: {
   status: SubscriptionStatus;
   expiresAt: Date | null;
-}) {
+} | null) {
+  if (!assinatura) {
+    return false;
+  }
+
   if (assinatura.status !== SubscriptionStatus.PAGO) {
     return false;
   }
@@ -48,46 +43,99 @@ function assinaturaEstaAtiva(assinatura: {
   return assinatura.expiresAt.getTime() > Date.now();
 }
 
-export async function GET() {
-  const usuario = await getCurrentUser();
-
-  if (!usuario || (usuario.role !== "PARTNER" && usuario.role !== "ADMIN")) {
-    return NextResponse.json(
-      { error: "Acesso não autorizado." },
-      { status: 403 }
-    );
+function assinaturaExpirada(assinatura?: {
+  status: SubscriptionStatus;
+  expiresAt: Date | null;
+} | null) {
+  if (!assinatura) {
+    return false;
   }
 
-  const assinatura = await prisma.partnerSubscription.findFirst({
+  if (assinatura.status !== SubscriptionStatus.PAGO) {
+    return false;
+  }
+
+  if (!assinatura.expiresAt) {
+    return false;
+  }
+
+  return assinatura.expiresAt.getTime() <= Date.now();
+}
+
+function formatarAssinatura(assinatura: AssinaturaFormatavel) {
+  return {
+    id: assinatura.id,
+    planName: assinatura.planName,
+    amountCents: assinatura.amountCents,
+    status: assinatura.status,
+    paymentMethod: assinatura.paymentMethod,
+    paidAt: assinatura.paidAt?.toISOString() ?? null,
+    expiresAt: assinatura.expiresAt?.toISOString() ?? null,
+    createdAt: assinatura.createdAt.toISOString(),
+    updatedAt: assinatura.updatedAt?.toISOString() ?? null,
+    active: assinaturaEstaAtiva(assinatura),
+    expired: assinaturaExpirada(assinatura),
+  };
+}
+
+async function carregarResumo(userId: string) {
+  const assinaturas = await prisma.partnerSubscription.findMany({
     where: {
-      userId: usuario.id,
+      userId,
     },
     orderBy: {
       createdAt: "desc",
     },
   });
 
-  if (!assinatura) {
-    return NextResponse.json({
-      subscription: null,
-      active: false,
-    });
-  }
+  const assinaturaAtual =
+    assinaturas.find((assinatura) => assinaturaEstaAtiva(assinatura)) ??
+    assinaturas[0] ??
+    null;
 
-  return NextResponse.json({
-    subscription: formatarAssinatura(assinatura),
-    active: assinaturaEstaAtiva(assinatura),
-  });
+  return {
+    subscription: assinaturaAtual ? formatarAssinatura(assinaturaAtual) : null,
+    active: assinaturaEstaAtiva(assinaturaAtual),
+    history: assinaturas.map(formatarAssinatura),
+  };
 }
 
-export async function POST(request: NextRequest) {
+async function validarUsuarioParceiro() {
   const usuario = await getCurrentUser();
 
   if (!usuario || (usuario.role !== "PARTNER" && usuario.role !== "ADMIN")) {
-    return NextResponse.json(
-      { error: "Acesso não autorizado." },
-      { status: 403 }
-    );
+    return {
+      usuario: null,
+      resposta: NextResponse.json(
+        { error: "Acesso não autorizado." },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return {
+    usuario,
+    resposta: null,
+  };
+}
+
+export async function GET() {
+  const { usuario, resposta } = await validarUsuarioParceiro();
+
+  if (!usuario) {
+    return resposta;
+  }
+
+  const resumo = await carregarResumo(usuario.id);
+
+  return NextResponse.json(resumo);
+}
+
+export async function POST(request: NextRequest) {
+  const { usuario, resposta } = await validarUsuarioParceiro();
+
+  if (!usuario) {
+    return resposta;
   }
 
   try {
@@ -101,9 +149,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const agora = new Date();
+    const resumoAtual = await carregarResumo(usuario.id);
+    const assinaturaAtualAtiva = resumoAtual.subscription?.active
+      ? resumoAtual.subscription
+      : null;
 
-    const assinatura = await prisma.partnerSubscription.create({
+    const agora = new Date();
+    const dataBase =
+      assinaturaAtualAtiva?.expiresAt && new Date(assinaturaAtualAtiva.expiresAt) > agora
+        ? new Date(assinaturaAtualAtiva.expiresAt)
+        : agora;
+
+    await prisma.partnerSubscription.create({
       data: {
         userId: usuario.id,
         planName: "Plano Destaque",
@@ -111,20 +168,111 @@ export async function POST(request: NextRequest) {
         status: SubscriptionStatus.PAGO,
         paymentMethod,
         paidAt: agora,
-        expiresAt: somarDias(agora, 30),
+        expiresAt: somarDias(dataBase, DIAS_VALIDADE),
       },
     });
 
+    const resumo = await carregarResumo(usuario.id);
+
     return NextResponse.json({
-      subscription: formatarAssinatura(assinatura),
-      active: true,
-      message: "Plano Destaque ativado com sucesso.",
+      ...resumo,
+      message: assinaturaAtualAtiva
+        ? "Plano Destaque renovado com sucesso."
+        : "Plano Destaque ativado com sucesso.",
     });
   } catch (error) {
-    console.error(error);
+    console.error("Erro ao processar plano:", error);
 
     return NextResponse.json(
-      { error: "Não foi possível processar o pagamento." },
+      { error: "Não foi possível processar o plano." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  const { usuario, resposta } = await validarUsuarioParceiro();
+
+  if (!usuario) {
+    return resposta;
+  }
+
+  try {
+    const body = await request.json();
+    const acao = String(body.acao ?? "cancelar").trim().toLowerCase();
+
+    if (acao !== "cancelar") {
+      return NextResponse.json(
+        { error: "Ação inválida." },
+        { status: 400 }
+      );
+    }
+
+    const agora = new Date();
+
+    await prisma.partnerSubscription.updateMany({
+      where: {
+        userId: usuario.id,
+        status: SubscriptionStatus.PAGO,
+        expiresAt: {
+          gt: agora,
+        },
+      },
+      data: {
+        status: SubscriptionStatus.CANCELADO,
+      },
+    });
+
+    const resumo = await carregarResumo(usuario.id);
+
+    return NextResponse.json({
+      ...resumo,
+      message: "Plano Destaque cancelado com sucesso.",
+    });
+  } catch (error) {
+    console.error("Erro ao cancelar plano:", error);
+
+    return NextResponse.json(
+      { error: "Não foi possível cancelar o plano." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE() {
+  const { usuario, resposta } = await validarUsuarioParceiro();
+
+  if (!usuario) {
+    return resposta;
+  }
+
+  try {
+    const agora = new Date();
+
+    await prisma.partnerSubscription.updateMany({
+      where: {
+        userId: usuario.id,
+        status: SubscriptionStatus.PAGO,
+        expiresAt: {
+          gt: agora,
+        },
+      },
+      data: {
+        status: SubscriptionStatus.CANCELADO,
+      },
+    });
+
+    const resumo = await carregarResumo(usuario.id);
+
+    return NextResponse.json({
+      ...resumo,
+      message: "Plano Destaque cancelado com sucesso.",
+    });
+  } catch (error) {
+    console.error("Erro ao cancelar plano:", error);
+
+    return NextResponse.json(
+      { error: "Não foi possível cancelar o plano." },
       { status: 500 }
     );
   }
