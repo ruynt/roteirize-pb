@@ -22,6 +22,8 @@ type Lugar = {
   tags: string[];
   distanciaCentroKm: number;
   imagemClasse: string;
+  fotoPrincipalUrl?: string | null;
+  galeriaUrls?: string[];
 };
 
 type ModoTransporte = "driving" | "walking" | "bicycling" | "transit";
@@ -117,6 +119,18 @@ function montarSrcMapa(lugaresRota: Lugar[], lugarFoco: Lugar | null) {
   return `https://www.google.com/maps?q=${encodeURIComponent(
     montarEndereco(lugarPrincipal),
   )}&output=embed`;
+}
+
+function estiloImagem(fotoPrincipalUrl?: string | null) {
+  if (!fotoPrincipalUrl) {
+    return undefined;
+  }
+
+  return {
+    backgroundImage: `linear-gradient(rgba(15, 36, 51, 0.2), rgba(15, 36, 51, 0.55)), url(${fotoPrincipalUrl})`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+  };
 }
 
 export default function MapaPage() {
@@ -475,7 +489,10 @@ export default function MapaPage() {
 
             {lugarFoco && (
               <section className="card-shadow overflow-hidden rounded-[2rem] border border-slate-100 bg-white">
-                <div className={`${lugarFoco.imagemClasse} p-6 text-white`}>
+                <div
+                  className={`${lugarFoco.imagemClasse} p-6 text-white`}
+                  style={estiloImagem(lugarFoco.fotoPrincipalUrl)}
+                >
                   <div className="flex flex-wrap gap-2">
                     <span className="font-heading rounded-full bg-white/20 px-3 py-1 text-xs font-bold text-white backdrop-blur">
                       {lugarFoco.categoria}

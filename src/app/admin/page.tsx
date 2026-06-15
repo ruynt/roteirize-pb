@@ -37,6 +37,10 @@ type SolicitacaoParceiro = {
   horario: string | null;
   preco: string | null;
   contato: string | null;
+  fotoPrincipalUrl?: string | null;
+  fotoPrincipalPublicId?: string | null;
+  galeriaUrls?: string[];
+  galeriaPublicIds?: string[];
   acessibilidade: string;
   status: string;
   statusOriginal: string;
@@ -690,6 +694,29 @@ export default function AdminPage() {
                             <p className="mt-3 text-sm leading-6 text-[#45617A]">
                               {solicitacao.descricao}
                             </p>
+
+                            {solicitacao.fotoPrincipalUrl && (
+                              <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100 bg-white">
+                                <img
+                                  src={solicitacao.fotoPrincipalUrl}
+                                  alt={`Foto principal de ${solicitacao.nome}`}
+                                  className="h-48 w-full object-cover"
+                                />
+                              </div>
+                            )}
+
+                            {Boolean(solicitacao.galeriaUrls?.length) && (
+                              <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">
+                                {solicitacao.galeriaUrls?.slice(0, 6).map((url, indice) => (
+                                  <img
+                                    key={`${url}-${indice}`}
+                                    src={url}
+                                    alt={`Foto ${indice + 1} de ${solicitacao.nome}`}
+                                    className="h-24 w-full rounded-2xl object-cover"
+                                  />
+                                ))}
+                              </div>
+                            )}
 
                             <div className="mt-4 rounded-2xl bg-white p-4">
                               <p className="font-heading text-xs font-black text-[#0F4C5C]">

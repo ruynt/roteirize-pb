@@ -13,6 +13,10 @@ type FormularioParceiro = {
   horario: string;
   preco: string;
   contato: string;
+  fotoPrincipalUrl: string;
+  fotoPrincipalPublicId: string;
+  galeriaUrls: string[];
+  galeriaPublicIds: string[];
   acessibilidade: string;
 };
 
@@ -26,6 +30,10 @@ type SolicitacaoParceiro = {
   horario: string | null;
   preco: string | null;
   contato: string | null;
+  fotoPrincipalUrl: string | null;
+  fotoPrincipalPublicId: string | null;
+  galeriaUrls: string[];
+  galeriaPublicIds: string[];
   acessibilidade: string;
   status: string;
   statusOriginal: "AGUARDANDO_APROVACAO" | "APROVADO" | "REJEITADO";
@@ -41,6 +49,10 @@ const formularioInicial: FormularioParceiro = {
   horario: "",
   preco: "",
   contato: "",
+  fotoPrincipalUrl: "",
+  fotoPrincipalPublicId: "",
+  galeriaUrls: [],
+  galeriaPublicIds: [],
   acessibilidade: "Média",
 };
 
@@ -147,6 +159,8 @@ export default function ParceiroPage() {
   const [solicitacoes, setSolicitacoes] = useState<SolicitacaoParceiro[]>([]);
   const [carregandoSolicitacoes, setCarregandoSolicitacoes] = useState(true);
   const [enviando, setEnviando] = useState(false);
+  const [enviandoFotoPrincipal, setEnviandoFotoPrincipal] = useState(false);
+  const [enviandoGaleria, setEnviandoGaleria] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
 
@@ -187,6 +201,127 @@ export default function ParceiroPage() {
     }));
   }
 
+  async function enviarImagemCloudinary(arquivo: File) {
+    const formData = new FormData();
+    formData.append("file", arquivo);
+
+    const resposta = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const dados = await resposta.json();
+
+    if (!resposta.ok) {
+      throw new Error(dados.error ?? "Não foi possível enviar a imagem.");
+    }
+
+    const url = String(
+      dados.url ?? dados.secureUrl ?? dados.secure_url ?? dados.imageUrl ?? ""
+    ).trim();
+
+    const publicId = String(
+      dados.publicId ?? dados.public_id ?? dados.assetPublicId ?? ""
+    ).trim();
+
+    if (!url) {
+      throw new Error(
+        "A imagem foi enviada ao Cloudinary, mas a API não retornou a URL da imagem."
+      );
+    }
+
+    return {
+      url,
+      publicId,
+    };
+  }
+
+  async function enviarFotoPrincipal(arquivo?: File) {
+    if (!arquivo) {
+      return;
+    }
+
+    try {
+      setEnviandoFotoPrincipal(true);
+      setErro("");
+      setMensagem("");
+
+      const imagem = await enviarImagemCloudinary(arquivo);
+
+      setFormulario((estadoAtual) => ({
+        ...estadoAtual,
+        fotoPrincipalUrl: imagem.url,
+        fotoPrincipalPublicId: imagem.publicId,
+      }));
+    } catch (error) {
+      console.error(error);
+      setErro(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível enviar a foto principal."
+      );
+    } finally {
+      setEnviandoFotoPrincipal(false);
+    }
+  }
+
+  async function enviarFotosGaleria(arquivos: FileList | null) {
+    if (!arquivos || arquivos.length === 0) {
+      return;
+    }
+
+    try {
+      setEnviandoGaleria(true);
+      setErro("");
+      setMensagem("");
+
+      const imagens: { url: string; publicId: string }[] = [];
+
+      for (const arquivo of Array.from(arquivos)) {
+        imagens.push(await enviarImagemCloudinary(arquivo));
+      }
+
+      setFormulario((estadoAtual) => ({
+        ...estadoAtual,
+        galeriaUrls: [
+          ...estadoAtual.galeriaUrls,
+          ...imagens.map((imagem) => imagem.url),
+        ],
+        galeriaPublicIds: [
+          ...estadoAtual.galeriaPublicIds,
+          ...imagens.map((imagem) => imagem.publicId),
+        ],
+      }));
+    } catch (error) {
+      console.error(error);
+      setErro(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível enviar as fotos da galeria."
+      );
+    } finally {
+      setEnviandoGaleria(false);
+    }
+  }
+
+  function removerFotoPrincipal() {
+    setFormulario((estadoAtual) => ({
+      ...estadoAtual,
+      fotoPrincipalUrl: "",
+      fotoPrincipalPublicId: "",
+    }));
+  }
+
+  function removerFotoGaleria(indice: number) {
+    setFormulario((estadoAtual) => ({
+      ...estadoAtual,
+      galeriaUrls: estadoAtual.galeriaUrls.filter((_, item) => item !== indice),
+      galeriaPublicIds: estadoAtual.galeriaPublicIds.filter(
+        (_, item) => item !== indice
+      ),
+    }));
+  }
+
   async function carregarSolicitacoes() {
     try {
       setCarregandoSolicitacoes(true);
@@ -213,17 +348,30 @@ export default function ParceiroPage() {
   async function enviarSolicitacao(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (enviandoFotoPrincipal || enviandoGaleria) {
+      setErro("Aguarde o envio das imagens terminar antes de enviar a solicitação.");
+      return;
+    }
+
     try {
       setEnviando(true);
       setMensagem("");
       setErro("");
+
+      const payload = {
+        ...formulario,
+        fotoPrincipalUrl: formulario.fotoPrincipalUrl.trim(),
+        fotoPrincipalPublicId: formulario.fotoPrincipalPublicId.trim(),
+        galeriaUrls: formulario.galeriaUrls.filter(Boolean),
+        galeriaPublicIds: formulario.galeriaPublicIds.filter(Boolean),
+      };
 
       const resposta = await fetch("/api/solicitacoes-parceiro", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formulario),
+        body: JSON.stringify(payload),
       });
 
       const dados = await resposta.json();
@@ -533,6 +681,109 @@ export default function ParceiroPage() {
             </div>
           </div>
 
+          <div className="mt-8 border-t border-slate-100 pt-6">
+            <div>
+              <h3 className="font-heading text-xl font-black text-[#0F2433]">
+                Fotos da experiência
+              </h3>
+
+              <p className="mt-2 text-sm leading-6 text-[#45617A]">
+                Adicione uma foto principal para aparecer no catálogo e, se
+                quiser, outras imagens para a galeria do ponto turístico.
+              </p>
+            </div>
+
+            <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_1fr]">
+              <div className="rounded-3xl bg-slate-50 p-5">
+                <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+                  Foto principal
+                </label>
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={enviandoFotoPrincipal}
+                  onChange={(event) =>
+                    enviarFotoPrincipal(event.target.files?.[0])
+                  }
+                  className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition file:mr-4 file:rounded-full file:border-0 file:bg-[#0F4C5C] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white focus:border-[#10B981] disabled:opacity-60"
+                />
+
+                <p className="mt-2 text-xs leading-5 text-[#45617A]">
+                  {enviandoFotoPrincipal
+                    ? "Enviando foto principal..."
+                    : "Formatos de imagem comuns. Tamanho máximo: 8 MB."}
+                </p>
+
+                {formulario.fotoPrincipalUrl && (
+                  <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100 bg-white">
+                    <img
+                      src={formulario.fotoPrincipalUrl}
+                      alt="Prévia da foto principal"
+                      className="h-48 w-full object-cover"
+                    />
+
+                    <div className="p-3">
+                      <button
+                        type="button"
+                        onClick={removerFotoPrincipal}
+                        className="font-heading rounded-full border border-red-100 px-4 py-2 text-xs font-bold text-red-500"
+                      >
+                        Remover foto principal
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-3xl bg-slate-50 p-5">
+                <label className="font-heading text-sm font-bold text-[#0F4C5C]">
+                  Galeria de fotos
+                </label>
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  disabled={enviandoGaleria}
+                  onChange={(event) => enviarFotosGaleria(event.target.files)}
+                  className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition file:mr-4 file:rounded-full file:border-0 file:bg-[#0F4C5C] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white focus:border-[#10B981] disabled:opacity-60"
+                />
+
+                <p className="mt-2 text-xs leading-5 text-[#45617A]">
+                  {enviandoGaleria
+                    ? "Enviando fotos da galeria..."
+                    : "Você pode selecionar mais de uma imagem."}
+                </p>
+
+                {formulario.galeriaUrls.length > 0 && (
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    {formulario.galeriaUrls.map((url, indice) => (
+                      <div
+                        key={`${url}-${indice}`}
+                        className="overflow-hidden rounded-2xl border border-slate-100 bg-white"
+                      >
+                        <img
+                          src={url}
+                          alt={`Foto ${indice + 1} da galeria`}
+                          className="h-28 w-full object-cover"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => removerFotoGaleria(indice)}
+                          className="font-heading w-full px-3 py-2 text-xs font-bold text-red-500"
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="mt-8 flex flex-col gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm leading-6 text-[#45617A]">
               Após o envio, acompanhe a análise pela seção Minhas solicitações.
@@ -540,10 +791,19 @@ export default function ParceiroPage() {
 
             <button
               type="submit"
-              disabled={enviando || !camposObrigatoriosPreenchidos}
+              disabled={
+                enviando ||
+                enviandoFotoPrincipal ||
+                enviandoGaleria ||
+                !camposObrigatoriosPreenchidos
+              }
               className="font-heading rounded-full bg-[#0F4C5C] px-7 py-4 text-sm font-black text-white transition hover:bg-[#10B981] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {enviando ? "Enviando..." : "Enviar para análise"}
+              {enviandoFotoPrincipal || enviandoGaleria
+                ? "Aguarde as imagens..."
+                : enviando
+                  ? "Enviando..."
+                  : "Enviar para análise"}
             </button>
           </div>
         </form>
@@ -727,6 +987,23 @@ export default function ParceiroPage() {
                   <p className="mt-4 line-clamp-3 text-sm leading-6 text-[#45617A]">
                     {solicitacao.descricao}
                   </p>
+
+                  {solicitacao.fotoPrincipalUrl && (
+                    <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100 bg-white">
+                      <img
+                        src={solicitacao.fotoPrincipalUrl}
+                        alt={`Foto principal de ${solicitacao.nome}`}
+                        className="h-36 w-full object-cover"
+                      />
+                    </div>
+                  )}
+
+                  {solicitacao.galeriaUrls.length > 0 && (
+                    <p className="mt-3 text-xs font-bold text-[#0F4C5C]">
+                      {solicitacao.galeriaUrls.length} foto(s) adicionais
+                      enviadas
+                    </p>
+                  )}
 
                   <div className="mt-4 rounded-2xl bg-white p-4">
                     <p className="font-heading text-xs font-black text-[#0F4C5C]">

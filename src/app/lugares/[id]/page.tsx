@@ -77,6 +77,17 @@ export default async function LugarPage({ params }: LugarPageProps) {
   const custo = nomesCustos[lugar.costLevel];
   const acessibilidade = nomesAcessibilidade[lugar.accessibility];
   const classeHero = classeImagem(lugar.imageClass);
+  const estiloHero = lugar.mainImageUrl
+    ? {
+        backgroundImage: `linear-gradient(rgba(15, 36, 51, 0.35), rgba(15, 36, 51, 0.65)), url(${lugar.mainImageUrl})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }
+    : undefined;
+  const fotosGaleria = [
+    ...(lugar.mainImageUrl ? [lugar.mainImageUrl] : []),
+    ...lugar.galleryImageUrls,
+  ];
 
   const enderecoMaps = encodeURIComponent(
     `${lugar.address}, ${lugar.city}, Paraíba`
@@ -89,7 +100,10 @@ export default async function LugarPage({ params }: LugarPageProps) {
     <main className="min-h-screen bg-[#F5F7F8] text-[#0F2433]">
       <Header />
 
-      <section className={`${classeHero} relative overflow-hidden text-white`}>
+      <section
+        className={`${lugar.mainImageUrl ? "" : classeHero} relative overflow-hidden text-white`}
+        style={estiloHero}
+      >
         <div className="absolute inset-0 bg-[#0F2433]/35" />
         <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-white/15 blur-3xl" />
         <div className="absolute -bottom-28 left-10 h-80 w-80 rounded-full bg-[#10B981]/25 blur-3xl" />
@@ -219,6 +233,34 @@ export default async function LugarPage({ params }: LugarPageProps) {
               </div>
             </div>
           </section>
+
+          {fotosGaleria.length > 0 && (
+            <section className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6 md:p-8">
+              <h2 className="font-heading text-2xl font-black text-[#0F2433]">
+                Galeria de fotos
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-[#45617A]">
+                Imagens enviadas pelo parceiro para apresentar melhor a
+                experiência turística.
+              </p>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                {fotosGaleria.map((foto, indice) => (
+                  <img
+                    key={`${foto}-${indice}`}
+                    src={foto}
+                    alt={`Foto ${indice + 1} de ${lugar.name}`}
+                    className={
+                      indice === 0
+                        ? "h-72 w-full rounded-[1.5rem] object-cover md:col-span-2"
+                        : "h-72 w-full rounded-[1.5rem] object-cover"
+                    }
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6 md:p-8">
             <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">

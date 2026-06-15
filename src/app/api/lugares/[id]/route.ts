@@ -75,6 +75,8 @@ export async function GET(
       tags: lugar.tags,
       distanciaCentroKm: lugar.distanceFromCenterKm,
       imagemClasse: lugar.imageClass,
+      fotoPrincipalUrl: lugar.mainImageUrl,
+      galeriaUrls: lugar.galleryImageUrls,
     });
   } catch (error) {
     console.error("Erro ao buscar lugar:", error);

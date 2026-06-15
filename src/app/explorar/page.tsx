@@ -24,6 +24,8 @@ type Lugar = {
   tags: string[];
   distanciaCentroKm: number;
   imagemClasse: string;
+  fotoPrincipalUrl?: string | null;
+  galeriaUrls?: string[];
   destaque?: boolean;
   parceiroNome?: string | null;
 };
@@ -161,6 +163,18 @@ function classeImagem(imagemClasse?: string) {
   }
 
   return `bg-gradient-to-br ${classe}`;
+}
+
+function estiloImagem(fotoPrincipalUrl?: string | null) {
+  if (!fotoPrincipalUrl) {
+    return undefined;
+  }
+
+  return {
+    backgroundImage: `linear-gradient(rgba(15, 36, 51, 0.2), rgba(15, 36, 51, 0.45)), url(${fotoPrincipalUrl})`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+  };
 }
 
 export default function ExplorarPage() {
@@ -654,6 +668,7 @@ export default function ExplorarPage() {
                   >
                     <div
                       className={`${classeImagem(recomendacao.lugar.imagemClasse)} h-32 text-white`}
+                      style={estiloImagem(recomendacao.lugar.fotoPrincipalUrl)}
                     >
                       <div className="flex h-full items-start justify-between gap-3 p-4">
                         <span className="font-heading rounded-full bg-white/20 px-3 py-1 text-xs font-bold text-white backdrop-blur">
@@ -777,7 +792,10 @@ export default function ExplorarPage() {
                       : "card-shadow overflow-hidden rounded-[2rem] border border-slate-100 bg-white"
                   }
                 >
-                  <div className={`${classeImagem(lugar.imagemClasse)} h-44 text-white`}>
+                  <div
+                    className={`${classeImagem(lugar.imagemClasse)} h-44 text-white`}
+                    style={estiloImagem(lugar.fotoPrincipalUrl)}
+                  >
                     <div className="flex h-full flex-col justify-between p-5">
                       <div className="flex flex-wrap gap-2">
                         <span className="font-heading rounded-full bg-white/20 px-3 py-1 text-xs font-bold text-white backdrop-blur">

@@ -78,6 +78,10 @@ model Place {
   tags                 String[]
   distanceFromCenterKm Float
   imageClass           String
+  mainImageUrl         String?
+  mainImagePublicId    String?
+  galleryImageUrls     String[]           @default([])
+  galleryImagePublicIds String[]          @default([])
   approved             Boolean            @default(true)
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
@@ -99,6 +103,10 @@ model PartnerRequest {
   schedule      String?
   priceRange    String?
   contact       String?
+  mainImageUrl         String?
+  mainImagePublicId    String?
+  galleryImageUrls     String[]           @default([])
+  galleryImagePublicIds String[]          @default([])
   accessibility AccessibilityLevel   @default(MEDIA)
   status        PartnerRequestStatus @default(AGUARDANDO_APROVACAO)
   createdAt     DateTime             @default(now())

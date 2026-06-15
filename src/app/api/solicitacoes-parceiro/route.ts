@@ -79,6 +79,10 @@ export async function GET() {
       horario: solicitacao.schedule,
       preco: solicitacao.priceRange,
       contato: solicitacao.contact,
+      fotoPrincipalUrl: solicitacao.mainImageUrl,
+      fotoPrincipalPublicId: solicitacao.mainImagePublicId,
+      galeriaUrls: solicitacao.galleryImageUrls,
+      galeriaPublicIds: solicitacao.galleryImagePublicIds,
       acessibilidade: formatarAcessibilidade(solicitacao.accessibility),
       status: formatarStatus(solicitacao.status),
       statusOriginal: solicitacao.status,
@@ -117,6 +121,22 @@ export async function POST(request: Request) {
     const preco = String(body.preco ?? "").trim();
     const contato = String(body.contato ?? "").trim();
     const acessibilidade = String(body.acessibilidade ?? "Média").trim();
+    const fotoPrincipalUrl = String(body.fotoPrincipalUrl ?? "").trim();
+    const fotoPrincipalPublicId = String(
+      body.fotoPrincipalPublicId ?? ""
+    ).trim();
+
+    const galeriaUrls = Array.isArray(body.galeriaUrls)
+      ? (body.galeriaUrls as unknown[])
+          .map((url) => String(url).trim())
+          .filter(Boolean)
+      : [];
+
+    const galeriaPublicIds = Array.isArray(body.galeriaPublicIds)
+      ? (body.galeriaPublicIds as unknown[])
+          .map((publicId) => String(publicId).trim())
+          .filter(Boolean)
+      : [];
 
     if (!nome || !tipo || !cidade || !endereco || !descricao) {
       return NextResponse.json(
@@ -143,6 +163,10 @@ export async function POST(request: Request) {
         schedule: horario || null,
         priceRange: preco || null,
         contact: contato || null,
+        mainImageUrl: fotoPrincipalUrl || null,
+        mainImagePublicId: fotoPrincipalPublicId || null,
+        galleryImageUrls: galeriaUrls,
+        galleryImagePublicIds: galeriaPublicIds,
         accessibility: normalizarAcessibilidade(acessibilidade),
         status: "AGUARDANDO_APROVACAO",
         userId: podeVincularParceiro ? usuario.id : null,
@@ -170,6 +194,10 @@ export async function POST(request: Request) {
         horario: solicitacao.schedule,
         preco: solicitacao.priceRange,
         contato: solicitacao.contact,
+        fotoPrincipalUrl: solicitacao.mainImageUrl,
+        fotoPrincipalPublicId: solicitacao.mainImagePublicId,
+        galeriaUrls: solicitacao.galleryImageUrls,
+        galeriaPublicIds: solicitacao.galleryImagePublicIds,
         acessibilidade: formatarAcessibilidade(solicitacao.accessibility),
         status: formatarStatus(solicitacao.status),
         statusOriginal: solicitacao.status,
