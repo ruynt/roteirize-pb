@@ -1,6 +1,7 @@
 "use client";
 
 import Header from "@/components/Header";
+import { carregarInteracoesTuristicas, obterAnonymousId, registrarInteracaoTuristica, type TipoInteracaoTuristica } from "@/lib/interacoes-client";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -61,7 +62,25 @@ type RoteiroSalvo = {
 type Recomendacao = {
   lugar: Lugar;
   pontuacao: number;
+  confianca?: number;
   motivos: string[];
+  sinais?: Record<string, number>;
+};
+
+type ResultadoRecomendacaoApi = {
+  modelo: string;
+  explicacaoModelo: string;
+  perfil: {
+    totalInteracoes: number;
+    totalCheckins: number;
+    totalRoteiros: number;
+    totalSelecionados: number;
+    categoriasPreferidas: string[];
+    cidadesPreferidas: string[];
+    custosPreferidos: string[];
+    palavrasChave: string[];
+  };
+  recomendacoes: Recomendacao[];
 };
 
 type IconeNome = "star" | "check";
@@ -151,6 +170,25 @@ function textoQuantidade(valor: number, singular: string, plural: string) {
   return valor === 1 ? `${valor} ${singular}` : `${valor} ${plural}`;
 }
 
+
+function textoMotivoRecomendacao(motivo: string) {
+  const texto = motivo.trim();
+
+  if (texto.includes("escolhas anteriores")) {
+    return "combina com lugares que você já demonstrou interesse";
+  }
+
+  if (texto.includes("faixa de custo")) {
+    return "tem faixa de preço parecida com seus roteiros salvos";
+  }
+
+  if (texto.includes("diversifica seu roteiro")) {
+    return "pode deixar seu roteiro mais variado e bem avaliado";
+  }
+
+  return texto;
+}
+
 function classeImagem(imagemClasse?: string) {
   const classe = String(imagemClasse ?? "").trim();
 
@@ -190,6 +228,11 @@ export default function ExplorarPage() {
   const [mostrarSomenteDestaques, setMostrarSomenteDestaques] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
+  const [recomendacoesML, setRecomendacoesML] = useState<Recomendacao[]>([]);
+  const [modeloRecomendacao, setModeloRecomendacao] = useState("");
+  const [explicacaoModelo, setExplicacaoModelo] = useState("");
+  const [carregandoRecomendacoes, setCarregandoRecomendacoes] = useState(false);
+  const [versaoInteracoes, setVersaoInteracoes] = useState(0);
 
   useEffect(() => {
     async function buscarLugares() {
@@ -301,7 +344,7 @@ export default function ExplorarPage() {
     };
   }, [checkins, roteirosSalvos]);
 
-  const recomendacoes = useMemo<Recomendacao[]>(() => {
+  const recomendacoesFallback = useMemo<Recomendacao[]>(() => {
     if (lugares.length === 0) {
       return [];
     }
@@ -383,6 +426,59 @@ export default function ExplorarPage() {
     return limitarLista(recomendacoesCalculadas, 3);
   }, [checkins, lugares, lugaresSelecionados, perfilUsuario]);
 
+  useEffect(() => {
+    if (carregando || lugares.length === 0) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    async function buscarRecomendacoesML() {
+      try {
+        setCarregandoRecomendacoes(true);
+
+        const resposta = await fetch("/api/recomendacoes", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            anonymousId: obterAnonymousId(),
+            checkins,
+            roteirosSalvos,
+            lugaresSelecionados,
+            interacoes: carregarInteracoesTuristicas(),
+          }),
+          signal: controller.signal,
+        });
+
+        if (!resposta.ok) {
+          throw new Error("Erro ao atualizar sugestões personalizadas.");
+        }
+
+        const dados = (await resposta.json()) as ResultadoRecomendacaoApi;
+        setRecomendacoesML(Array.isArray(dados.recomendacoes) ? dados.recomendacoes : []);
+        setModeloRecomendacao(dados.modelo ?? "");
+        setExplicacaoModelo(dados.explicacaoModelo ?? "");
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        console.warn("Usando recomendação local como fallback.", error);
+        setRecomendacoesML([]);
+      } finally {
+        setCarregandoRecomendacoes(false);
+      }
+    }
+
+    buscarRecomendacoesML();
+
+    return () => controller.abort();
+  }, [carregando, lugares.length, checkins, roteirosSalvos, lugaresSelecionados, versaoInteracoes]);
+
+  const recomendacoes = recomendacoesML.length > 0 ? recomendacoesML : recomendacoesFallback;
+
   const totalDestaques = useMemo(() => {
     return lugares.filter((lugar) => lugar.destaque).length;
   }, [lugares]);
@@ -443,6 +539,36 @@ export default function ExplorarPage() {
 
     setLugaresSelecionados(novaLista);
     localStorage.setItem(CHAVE_LUGARES_SELECIONADOS, JSON.stringify(novaLista));
+
+    const lugar = lugares.find((item) => item.id === lugarId);
+
+    registrarInteracaoTuristica({
+      placeId: lugarId,
+      type: jaSelecionado ? "UNSELECT" : "SELECT",
+      metadata: {
+        nome: lugar?.nome,
+        cidade: lugar?.cidade,
+        categoria: lugar?.categoria,
+        origem: "explorar",
+      },
+    });
+
+    setVersaoInteracoes((versaoAtual) => versaoAtual + 1);
+  }
+
+  function registrarVisualizacao(lugar: Lugar, type: TipoInteracaoTuristica = "DETAIL_OPENED") {
+    registrarInteracaoTuristica({
+      placeId: lugar.id,
+      type,
+      metadata: {
+        nome: lugar.nome,
+        cidade: lugar.cidade,
+        categoria: lugar.categoria,
+        origem: "explorar",
+      },
+    });
+
+    setVersaoInteracoes((versaoAtual) => versaoAtual + 1);
   }
 
   function limparFiltros() {
@@ -616,7 +742,7 @@ export default function ExplorarPage() {
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
                 <span className="font-heading rounded-full bg-[#10B981]/10 px-4 py-2 text-xs font-black text-[#0F4C5C]">
-                  Recomendações personalizadas
+                  Sugestões para você
                 </span>
 
                 <h2 className="font-heading mt-4 text-2xl font-black text-[#0F2433]">
@@ -624,29 +750,30 @@ export default function ExplorarPage() {
                 </h2>
 
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-[#45617A]">
-                  As sugestões consideram seus check-ins, roteiros salvos,
-                  cidades e categorias mais frequentes para aproximar os locais
-                  do seu perfil de viagem.
+                  As sugestões são baseadas nos lugares que você visualizou,
+                  adicionou ao roteiro, salvou ou marcou como visitados.
                 </p>
               </div>
 
               <div className="rounded-3xl bg-slate-50 p-4 text-sm">
                 <p className="font-heading font-black text-[#0F4C5C]">
-                  Seu perfil
+                  Base das sugestões
                 </p>
 
                 <p className="mt-2 text-xs leading-5 text-[#45617A]">
-                  {perfilUsuario.totalInteracoes > 0
-                    ? `${textoQuantidade(
-                        perfilUsuario.totalCheckins,
-                        "check-in",
-                        "check-ins"
-                      )} e ${textoQuantidade(
-                        perfilUsuario.totalRoteiros,
-                        "roteiro salvo",
-                        "roteiros salvos"
-                      )}.`
-                    : "Perfil inicial baseado em locais bem avaliados."}
+                  {carregandoRecomendacoes
+                    ? "Atualizando suas sugestões..."
+                    : perfilUsuario.totalInteracoes > 0
+                      ? `${textoQuantidade(
+                          perfilUsuario.totalCheckins,
+                          "check-in",
+                          "check-ins"
+                        )}, ${textoQuantidade(
+                          perfilUsuario.totalRoteiros,
+                          "roteiro salvo",
+                          "roteiros salvos"
+                        )} e interações recentes.`
+                      : "Sugestões iniciais com locais bem avaliados."}
                 </p>
               </div>
             </div>
@@ -702,8 +829,14 @@ export default function ExplorarPage() {
 
                       <div className="mt-4 rounded-2xl bg-white p-4">
                         <p className="font-heading text-xs font-black text-[#0F4C5C]">
-                          Por que recomendamos?
+                          Por que apareceu para você?
                         </p>
+
+                        {typeof recomendacao.confianca === "number" && (
+                          <p className="mt-1 text-[11px] font-semibold text-[#45617A]">
+                            Combina com seu histórico: {Math.round(recomendacao.confianca * 100)}%
+                          </p>
+                        )}
 
                         <ul className="mt-2 space-y-1 text-xs leading-5 text-[#45617A]">
                           {recomendacao.motivos.map((motivo) => (
@@ -711,7 +844,7 @@ export default function ExplorarPage() {
                               <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#10B981]/10 text-[#0F4C5C]">
                                 <Icone nome="check" className="h-3 w-3" />
                               </span>
-                              <span>{motivo}</span>
+                              <span>{textoMotivoRecomendacao(motivo)}</span>
                             </li>
                           ))}
                         </ul>
@@ -720,6 +853,7 @@ export default function ExplorarPage() {
                       <div className="mt-5 flex flex-col gap-2">
                         <Link
                           href={`/lugares/${recomendacao.lugar.id}`}
+                          onClick={() => registrarVisualizacao(recomendacao.lugar)}
                           className="font-heading rounded-full bg-[#0F4C5C] px-5 py-3 text-center text-sm font-black text-white transition hover:bg-[#10B981]"
                         >
                           Ver detalhes
@@ -894,6 +1028,7 @@ export default function ExplorarPage() {
                     <div className="mt-6 flex flex-col gap-3">
                       <Link
                         href={`/lugares/${lugar.id}`}
+                        onClick={() => registrarVisualizacao(lugar)}
                         className="font-heading rounded-full bg-[#0F4C5C] px-5 py-3 text-center text-sm font-black text-white transition hover:bg-[#10B981]"
                       >
                         Ver detalhes

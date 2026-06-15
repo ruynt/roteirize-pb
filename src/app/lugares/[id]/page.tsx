@@ -1,6 +1,7 @@
 import BotaoAdicionarLugar from "@/components/BotaoAdicionarLugar";
 import BotaoCheckin from "@/components/BotaoCheckin";
 import Header from "@/components/Header";
+import RegistrarInteracaoLugar from "@/components/RegistrarInteracaoLugar";
 import {
   BotaoAbrirGaleria,
   GaleriaFotosClicavel,
@@ -116,6 +117,14 @@ export default async function LugarPage({ params }: LugarPageProps) {
   return (
     <main className="min-h-screen bg-[#F5F7F8] text-[#0F2433]">
       <Header />
+      <RegistrarInteracaoLugar
+        lugar={{
+          id: lugar.id,
+          nome: lugar.name,
+          cidade: lugar.city,
+          categoria,
+        }}
+      />
 
       <section
         className={`${lugar.mainImageUrl ? "" : classeHero} relative overflow-hidden text-white`}

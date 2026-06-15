@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { registrarInteracaoTuristica } from "@/lib/interacoes-client";
 import { useEffect, useState } from "react";
 
 const CHAVE_CHECKINS = "roteirize_checkins";
@@ -168,6 +169,17 @@ export default function BotaoCheckin({ lugar }: BotaoCheckinProps) {
 
     setCheckinRealizado(true);
     setDataCheckin(novoCheckin.data);
+
+    registrarInteracaoTuristica({
+      placeId: lugar.id,
+      type: "CHECKIN",
+      metadata: {
+        nome: lugar.nome,
+        cidade: lugar.cidade,
+        categoria: lugar.categoria,
+        origem: "passaporte-digital",
+      },
+    });
   }
 
   function removerCheckin() {
@@ -180,6 +192,17 @@ export default function BotaoCheckin({ lugar }: BotaoCheckinProps) {
 
     setCheckinRealizado(false);
     setDataCheckin("");
+
+    registrarInteracaoTuristica({
+      placeId: lugar.id,
+      type: "CHECKIN_REMOVED",
+      metadata: {
+        nome: lugar.nome,
+        cidade: lugar.cidade,
+        categoria: lugar.categoria,
+        origem: "passaporte-digital",
+      },
+    });
   }
 
   return (

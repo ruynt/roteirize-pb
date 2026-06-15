@@ -46,6 +46,16 @@ enum SubscriptionStatus {
   CANCELADO
 }
 
+enum InteractionType {
+  VIEW
+  DETAIL_OPENED
+  SELECT
+  UNSELECT
+  CHECKIN
+  CHECKIN_REMOVED
+  ITINERARY_SAVED
+}
+
 model User {
   id           String   @id @default(uuid())
   name         String
@@ -60,6 +70,7 @@ model User {
   partnerPlaces Place[]               @relation("PartnerPlaces")
   requests      PartnerRequest[]
   subscriptions PartnerSubscription[]
+  interactions  UserPlaceInteraction[]
 }
 
 model Place {
@@ -91,6 +102,7 @@ model Place {
 
   reviews        Review[]
   itineraryStops ItineraryStop[]
+  interactions   UserPlaceInteraction[]
 }
 
 model PartnerRequest {
@@ -142,6 +154,26 @@ model Review {
 
   user  User  @relation(fields: [userId], references: [id])
   place Place @relation(fields: [placeId], references: [id])
+}
+
+model UserPlaceInteraction {
+  id          String          @id @default(uuid())
+  type        InteractionType
+  weight      Float           @default(1)
+  anonymousId String?
+  metadata    Json?
+  createdAt   DateTime        @default(now())
+
+  userId  String?
+  placeId String?
+
+  user  User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  place Place? @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([anonymousId, createdAt])
+  @@index([placeId, createdAt])
+  @@index([type, createdAt])
 }
 
 model Itinerary {

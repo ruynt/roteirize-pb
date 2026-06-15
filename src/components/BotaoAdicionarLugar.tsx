@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { registrarInteracaoTuristica } from "@/lib/interacoes-client";
 
 const CHAVE_LUGARES_SELECIONADOS = "roteirize_lugares_selecionados";
 
@@ -30,6 +31,15 @@ export default function BotaoAdicionarLugar({
       CHAVE_LUGARES_SELECIONADOS,
       JSON.stringify(novosSelecionados),
     );
+
+    registrarInteracaoTuristica({
+      placeId: lugarId,
+      type: "SELECT",
+      metadata: {
+        origem: "detalhes-do-local",
+        acao: "criar-roteiro-com-local",
+      },
+    });
 
     router.push("/criar-roteiro");
   }

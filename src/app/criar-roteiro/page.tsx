@@ -1,6 +1,7 @@
 "use client";
 
 import Header from "@/components/Header";
+import { registrarInteracaoTuristica } from "@/lib/interacoes-client";
 import MapaRoteiro from "@/components/MapaRoteiro";
 import ResumoRecomendacao from "@/components/ResumoRecomendacao";
 import Link from "next/link";
@@ -885,6 +886,19 @@ export default function CriarRoteiroPage() {
       CHAVE_ROTEIROS_SALVOS,
       JSON.stringify([novoRoteiro, ...roteirosSalvos])
     );
+
+    for (const parada of roteiro) {
+      registrarInteracaoTuristica({
+        placeId: parada.lugar.id,
+        type: "ITINERARY_SAVED",
+        metadata: {
+          titulo: novoRoteiro.titulo,
+          cidadeBase,
+          categoria: parada.lugar.categoria,
+          origem: "criador-de-roteiros",
+        },
+      });
+    }
 
     setMensagem("Roteiro salvo com sucesso!");
   }
