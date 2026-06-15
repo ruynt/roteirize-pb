@@ -1,5 +1,6 @@
 "use client";
 
+import BotaoInstalarApp from "@/components/BotaoInstalarApp";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -286,6 +287,11 @@ export default function Header() {
                 </Link>
               );
             })}
+
+            <BotaoInstalarApp
+              onAfterInstall={() => setMenuAberto(false)}
+              className="font-heading inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[#0F4C5C]/15 bg-[#0F4C5C] px-4 py-3 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#10B981] hover:shadow-lg active:translate-y-0"
+            />
 
             <div className="mt-3 border-t border-slate-100 pt-3">
               {carregando && !usuario ? (
