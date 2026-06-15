@@ -1,6 +1,8 @@
 "use client";
 
+import BotaoUploadImagem from "@/components/BotaoUploadImagem";
 import Header from "@/components/Header";
+import GaleriaModal, { type ImagemGaleria } from "@/components/GaleriaModal";
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
@@ -163,6 +165,11 @@ export default function ParceiroPage() {
   const [enviandoGaleria, setEnviandoGaleria] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
+  const [galeriaModal, setGaleriaModal] = useState<{
+    imagens: ImagemGaleria[];
+    indice: number;
+    titulo: string;
+  } | null>(null);
 
   const camposObrigatoriosPreenchidos = useMemo(() => {
     return Boolean(
@@ -343,6 +350,69 @@ export default function ParceiroPage() {
     } finally {
       setCarregandoSolicitacoes(false);
     }
+  }
+
+
+  function montarImagensFormulario(): ImagemGaleria[] {
+    return [
+      ...(formulario.fotoPrincipalUrl
+        ? [
+            {
+              url: formulario.fotoPrincipalUrl,
+              alt: "Prévia da foto principal",
+              legenda: "Foto principal",
+            },
+          ]
+        : []),
+      ...formulario.galeriaUrls.map((url, indice) => ({
+        url,
+        alt: `Foto ${indice + 1} da galeria`,
+        legenda: `Foto da galeria ${indice + 1}`,
+      })),
+    ];
+  }
+
+  function abrirGaleriaFormulario(indice: number) {
+    const imagens = montarImagensFormulario();
+
+    if (imagens.length === 0) {
+      return;
+    }
+
+    setGaleriaModal({
+      imagens,
+      indice,
+      titulo: "Prévia das fotos da experiência",
+    });
+  }
+
+  function abrirGaleriaSolicitacao(solicitacao: SolicitacaoParceiro, indice: number) {
+    const imagens: ImagemGaleria[] = [
+      ...(solicitacao.fotoPrincipalUrl
+        ? [
+            {
+              url: solicitacao.fotoPrincipalUrl,
+              alt: `Foto principal de ${solicitacao.nome}`,
+              legenda: "Foto principal",
+            },
+          ]
+        : []),
+      ...solicitacao.galeriaUrls.map((url, item) => ({
+        url,
+        alt: `Foto ${item + 1} de ${solicitacao.nome}`,
+        legenda: `Foto da galeria ${item + 1}`,
+      })),
+    ];
+
+    if (imagens.length === 0) {
+      return;
+    }
+
+    setGaleriaModal({
+      imagens,
+      indice,
+      titulo: solicitacao.nome,
+    });
   }
 
   async function enviarSolicitacao(event: FormEvent<HTMLFormElement>) {
@@ -699,35 +769,40 @@ export default function ParceiroPage() {
                   Foto principal
                 </label>
 
-                <input
-                  type="file"
-                  accept="image/*"
-                  disabled={enviandoFotoPrincipal}
-                  onChange={(event) =>
-                    enviarFotoPrincipal(event.target.files?.[0])
+                <BotaoUploadImagem
+                  label="Adicionar foto principal"
+                  textoCarregando="Enviando foto principal..."
+                  loading={enviandoFotoPrincipal}
+                  disabled={enviandoGaleria}
+                  descricao="Formatos de imagem comuns. Tamanho máximo: 8 MB."
+                  onFilesSelected={(arquivos) =>
+                    enviarFotoPrincipal(arquivos?.[0])
                   }
-                  className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition file:mr-4 file:rounded-full file:border-0 file:bg-[#0F4C5C] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white focus:border-[#10B981] disabled:opacity-60"
                 />
-
-                <p className="mt-2 text-xs leading-5 text-[#45617A]">
-                  {enviandoFotoPrincipal
-                    ? "Enviando foto principal..."
-                    : "Formatos de imagem comuns. Tamanho máximo: 8 MB."}
-                </p>
 
                 {formulario.fotoPrincipalUrl && (
                   <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100 bg-white">
-                    <img
-                      src={formulario.fotoPrincipalUrl}
-                      alt="Prévia da foto principal"
-                      className="h-48 w-full object-cover"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => abrirGaleriaFormulario(0)}
+                      className="group relative block w-full overflow-hidden text-left outline-none focus:ring-4 focus:ring-[#10B981]/20"
+                    >
+                      <img
+                        src={formulario.fotoPrincipalUrl}
+                        alt="Prévia da foto principal"
+                        className="h-48 w-full object-cover transition duration-300 group-hover:scale-105"
+                      />
+
+                      <span className="absolute inset-x-3 bottom-3 rounded-2xl bg-[#0F2433]/70 px-4 py-2 text-xs font-bold text-white opacity-0 backdrop-blur transition group-hover:opacity-100">
+                        Clique para ampliar
+                      </span>
+                    </button>
 
                     <div className="p-3">
                       <button
                         type="button"
                         onClick={removerFotoPrincipal}
-                        className="font-heading rounded-full border border-red-100 px-4 py-2 text-xs font-bold text-red-500"
+                        className="font-heading rounded-full border border-red-100 px-4 py-2 text-xs font-bold text-red-500 transition hover:bg-red-50"
                       >
                         Remover foto principal
                       </button>
@@ -741,20 +816,15 @@ export default function ParceiroPage() {
                   Galeria de fotos
                 </label>
 
-                <input
-                  type="file"
-                  accept="image/*"
+                <BotaoUploadImagem
+                  label="Adicionar fotos à galeria"
+                  textoCarregando="Enviando fotos da galeria..."
                   multiple
-                  disabled={enviandoGaleria}
-                  onChange={(event) => enviarFotosGaleria(event.target.files)}
-                  className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition file:mr-4 file:rounded-full file:border-0 file:bg-[#0F4C5C] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white focus:border-[#10B981] disabled:opacity-60"
+                  loading={enviandoGaleria}
+                  disabled={enviandoFotoPrincipal}
+                  descricao="Você pode selecionar mais de uma imagem."
+                  onFilesSelected={enviarFotosGaleria}
                 />
-
-                <p className="mt-2 text-xs leading-5 text-[#45617A]">
-                  {enviandoGaleria
-                    ? "Enviando fotos da galeria..."
-                    : "Você pode selecionar mais de uma imagem."}
-                </p>
 
                 {formulario.galeriaUrls.length > 0 && (
                   <div className="mt-4 grid grid-cols-2 gap-3">
@@ -763,16 +833,32 @@ export default function ParceiroPage() {
                         key={`${url}-${indice}`}
                         className="overflow-hidden rounded-2xl border border-slate-100 bg-white"
                       >
-                        <img
-                          src={url}
-                          alt={`Foto ${indice + 1} da galeria`}
-                          className="h-28 w-full object-cover"
-                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            abrirGaleriaFormulario(
+                              formulario.fotoPrincipalUrl
+                                ? indice + 1
+                                : indice
+                            )
+                          }
+                          className="group relative block w-full overflow-hidden outline-none focus:ring-4 focus:ring-[#10B981]/20"
+                        >
+                          <img
+                            src={url}
+                            alt={`Foto ${indice + 1} da galeria`}
+                            className="h-28 w-full object-cover transition duration-300 group-hover:scale-105"
+                          />
+
+                          <span className="absolute inset-0 flex items-end bg-gradient-to-t from-[#0F2433]/60 to-transparent p-2 text-[10px] font-bold text-white opacity-0 transition group-hover:opacity-100">
+                            Ampliar
+                          </span>
+                        </button>
 
                         <button
                           type="button"
                           onClick={() => removerFotoGaleria(indice)}
-                          className="font-heading w-full px-3 py-2 text-xs font-bold text-red-500"
+                          className="font-heading w-full px-3 py-2 text-xs font-bold text-red-500 transition hover:bg-red-50"
                         >
                           Remover
                         </button>
@@ -989,13 +1075,21 @@ export default function ParceiroPage() {
                   </p>
 
                   {solicitacao.fotoPrincipalUrl && (
-                    <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100 bg-white">
+                    <button
+                      type="button"
+                      onClick={() => abrirGaleriaSolicitacao(solicitacao, 0)}
+                      className="group relative mt-4 w-full overflow-hidden rounded-2xl border border-slate-100 bg-white text-left outline-none transition hover:-translate-y-1 focus:ring-4 focus:ring-[#10B981]/20"
+                    >
                       <img
                         src={solicitacao.fotoPrincipalUrl}
                         alt={`Foto principal de ${solicitacao.nome}`}
-                        className="h-36 w-full object-cover"
+                        className="h-36 w-full object-cover transition duration-300 group-hover:scale-105"
                       />
-                    </div>
+
+                      <span className="absolute inset-x-3 bottom-3 rounded-2xl bg-[#0F2433]/70 px-3 py-2 text-xs font-bold text-white opacity-0 backdrop-blur transition group-hover:opacity-100">
+                        Clique para ampliar
+                      </span>
+                    </button>
                   )}
 
                   {solicitacao.galeriaUrls.length > 0 && (
@@ -1020,6 +1114,20 @@ export default function ParceiroPage() {
           )}
         </div>
       </section>
+
+      <GaleriaModal
+        aberto={Boolean(galeriaModal)}
+        imagens={galeriaModal?.imagens ?? []}
+        indiceAtual={galeriaModal?.indice ?? 0}
+        titulo={galeriaModal?.titulo ?? "Galeria de fotos"}
+        onClose={() => setGaleriaModal(null)}
+        onSelecionarIndice={(indice) =>
+          setGaleriaModal((estadoAtual) =>
+            estadoAtual ? { ...estadoAtual, indice } : estadoAtual
+          )
+        }
+      />
+
     </main>
   );
 }

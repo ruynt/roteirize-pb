@@ -1,6 +1,11 @@
 import BotaoAdicionarLugar from "@/components/BotaoAdicionarLugar";
 import BotaoCheckin from "@/components/BotaoCheckin";
 import Header from "@/components/Header";
+import {
+  BotaoAbrirGaleria,
+  GaleriaFotosClicavel,
+  type ImagemGaleria,
+} from "@/components/GaleriaModal";
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -84,9 +89,21 @@ export default async function LugarPage({ params }: LugarPageProps) {
         backgroundPosition: "center",
       }
     : undefined;
-  const fotosGaleria = [
-    ...(lugar.mainImageUrl ? [lugar.mainImageUrl] : []),
-    ...lugar.galleryImageUrls,
+  const imagensGaleria: ImagemGaleria[] = [
+    ...(lugar.mainImageUrl
+      ? [
+          {
+            url: lugar.mainImageUrl,
+            alt: `Foto principal de ${lugar.name}`,
+            legenda: "Foto principal",
+          },
+        ]
+      : []),
+    ...lugar.galleryImageUrls.map((foto, indice) => ({
+      url: foto,
+      alt: `Foto ${indice + 1} de ${lugar.name}`,
+      legenda: `Foto da galeria ${indice + 1}`,
+    })),
   ];
 
   const enderecoMaps = encodeURIComponent(
@@ -185,6 +202,16 @@ export default async function LugarPage({ params }: LugarPageProps) {
               >
                 Abrir no Google Maps
               </a>
+
+              {imagensGaleria.length > 0 && (
+                <BotaoAbrirGaleria
+                  imagens={imagensGaleria}
+                  titulo={lugar.name}
+                  className="font-heading inline-flex min-h-14 min-w-[190px] items-center justify-center rounded-full border border-white/40 bg-white/10 px-7 py-3 text-center text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-[#0F4C5C]"
+                >
+                  Ver fotos
+                </BotaoAbrirGaleria>
+              )}
             </div>
           </div>
         </div>
@@ -234,32 +261,13 @@ export default async function LugarPage({ params }: LugarPageProps) {
             </div>
           </section>
 
-          {fotosGaleria.length > 0 && (
-            <section className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6 md:p-8">
-              <h2 className="font-heading text-2xl font-black text-[#0F2433]">
-                Galeria de fotos
-              </h2>
-
-              <p className="mt-2 text-sm leading-6 text-[#45617A]">
-                Imagens enviadas pelo parceiro para apresentar melhor a
-                experiência turística.
-              </p>
-
-              <div className="mt-6 grid gap-4 md:grid-cols-3">
-                {fotosGaleria.map((foto, indice) => (
-                  <img
-                    key={`${foto}-${indice}`}
-                    src={foto}
-                    alt={`Foto ${indice + 1} de ${lugar.name}`}
-                    className={
-                      indice === 0
-                        ? "h-72 w-full rounded-[1.5rem] object-cover md:col-span-2"
-                        : "h-72 w-full rounded-[1.5rem] object-cover"
-                    }
-                  />
-                ))}
-              </div>
-            </section>
+          {imagensGaleria.length > 0 && (
+            <GaleriaFotosClicavel
+              imagens={imagensGaleria}
+              titulo="Galeria de fotos"
+              descricao="Imagens enviadas pelo parceiro para apresentar melhor a experiência turística."
+              destacarPrimeiraImagem
+            />
           )}
 
           <section className="card-shadow rounded-[2rem] border border-slate-100 bg-white p-6 md:p-8">

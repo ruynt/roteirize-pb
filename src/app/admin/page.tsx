@@ -1,6 +1,7 @@
 "use client";
 
 import Header from "@/components/Header";
+import GaleriaModal, { type ImagemGaleria } from "@/components/GaleriaModal";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -241,6 +242,11 @@ export default function AdminPage() {
   const [processandoId, setProcessandoId] = useState("");
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
+  const [galeriaModal, setGaleriaModal] = useState<{
+    imagens: ImagemGaleria[];
+    indice: number;
+    titulo: string;
+  } | null>(null);
 
   async function buscarSolicitacoes() {
     try {
@@ -406,6 +412,45 @@ export default function AdminPage() {
     } finally {
       setProcessandoId("");
     }
+  }
+
+
+  function montarImagensSolicitacao(
+    solicitacao: SolicitacaoParceiro
+  ): ImagemGaleria[] {
+    return [
+      ...(solicitacao.fotoPrincipalUrl
+        ? [
+            {
+              url: solicitacao.fotoPrincipalUrl,
+              alt: `Foto principal de ${solicitacao.nome}`,
+              legenda: "Foto principal",
+            },
+          ]
+        : []),
+      ...(solicitacao.galeriaUrls ?? []).map((url, indice) => ({
+        url,
+        alt: `Foto ${indice + 1} de ${solicitacao.nome}`,
+        legenda: `Foto da galeria ${indice + 1}`,
+      })),
+    ];
+  }
+
+  function abrirGaleriaSolicitacao(
+    solicitacao: SolicitacaoParceiro,
+    indice: number
+  ) {
+    const imagens = montarImagensSolicitacao(solicitacao);
+
+    if (imagens.length === 0) {
+      return;
+    }
+
+    setGaleriaModal({
+      imagens,
+      indice,
+      titulo: solicitacao.nome,
+    });
   }
 
   return (
@@ -696,25 +741,54 @@ export default function AdminPage() {
                             </p>
 
                             {solicitacao.fotoPrincipalUrl && (
-                              <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100 bg-white">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  abrirGaleriaSolicitacao(solicitacao, 0)
+                                }
+                                className="group relative mt-4 w-full overflow-hidden rounded-2xl border border-slate-100 bg-white text-left outline-none transition hover:-translate-y-1 focus:ring-4 focus:ring-[#10B981]/20"
+                              >
                                 <img
                                   src={solicitacao.fotoPrincipalUrl}
                                   alt={`Foto principal de ${solicitacao.nome}`}
-                                  className="h-48 w-full object-cover"
+                                  className="h-48 w-full object-cover transition duration-300 group-hover:scale-105"
                                 />
-                              </div>
+
+                                <span className="absolute inset-x-3 bottom-3 rounded-2xl bg-[#0F2433]/70 px-4 py-2 text-xs font-bold text-white opacity-0 backdrop-blur transition group-hover:opacity-100">
+                                  Clique para ampliar
+                                </span>
+                              </button>
                             )}
 
                             {Boolean(solicitacao.galeriaUrls?.length) && (
                               <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">
-                                {solicitacao.galeriaUrls?.slice(0, 6).map((url, indice) => (
-                                  <img
-                                    key={`${url}-${indice}`}
-                                    src={url}
-                                    alt={`Foto ${indice + 1} de ${solicitacao.nome}`}
-                                    className="h-24 w-full rounded-2xl object-cover"
-                                  />
-                                ))}
+                                {solicitacao.galeriaUrls
+                                  ?.slice(0, 6)
+                                  .map((url, indice) => (
+                                    <button
+                                      key={`${url}-${indice}`}
+                                      type="button"
+                                      onClick={() =>
+                                        abrirGaleriaSolicitacao(
+                                          solicitacao,
+                                          solicitacao.fotoPrincipalUrl
+                                            ? indice + 1
+                                            : indice
+                                        )
+                                      }
+                                      className="group relative overflow-hidden rounded-2xl outline-none transition hover:-translate-y-1 focus:ring-4 focus:ring-[#10B981]/20"
+                                    >
+                                      <img
+                                        src={url}
+                                        alt={`Foto ${indice + 1} de ${solicitacao.nome}`}
+                                        className="h-24 w-full object-cover transition duration-300 group-hover:scale-105"
+                                      />
+
+                                      <span className="absolute inset-0 flex items-end bg-gradient-to-t from-[#0F2433]/60 to-transparent p-2 text-[10px] font-bold text-white opacity-0 transition group-hover:opacity-100">
+                                        Ampliar
+                                      </span>
+                                    </button>
+                                  ))}
                               </div>
                             )}
 
@@ -881,6 +955,20 @@ export default function AdminPage() {
           </section>
         </>
       )}
+
+      <GaleriaModal
+        aberto={Boolean(galeriaModal)}
+        imagens={galeriaModal?.imagens ?? []}
+        indiceAtual={galeriaModal?.indice ?? 0}
+        titulo={galeriaModal?.titulo ?? "Galeria de fotos"}
+        onClose={() => setGaleriaModal(null)}
+        onSelecionarIndice={(indice) =>
+          setGaleriaModal((estadoAtual) =>
+            estadoAtual ? { ...estadoAtual, indice } : estadoAtual
+          )
+        }
+      />
+
     </main>
   );
 }
