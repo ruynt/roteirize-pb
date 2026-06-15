@@ -14,8 +14,30 @@ const poppins = Poppins({
   weight: ["400", "500", "600", "700", "800", "900"],
 });
 
+function obterSiteUrl() {
+  const siteUrlPublico = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+
+  if (siteUrlPublico) {
+    try {
+      return new URL(siteUrlPublico).origin;
+    } catch {
+      // Se a URL vier sem https:// ou inválida, usa fallback seguro.
+    }
+  }
+
+  const vercelUrl = process.env.VERCEL_URL?.trim();
+
+  if (vercelUrl) {
+    return `https://${vercelUrl}`;
+  }
+
+  return "http://localhost:3000";
+}
+
+const siteUrl = obterSiteUrl();
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(siteUrl),
   title: {
     default: "Roteirize PB",
     template: "%s | Roteirize PB",
@@ -39,7 +61,11 @@ export const metadata: Metadata = {
     icon: "/favicon.ico",
     shortcut: "/favicon.ico",
     apple: [
-      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      {
+        url: "/icons/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
     ],
   },
   appleWebApp: {
