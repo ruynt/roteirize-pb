@@ -1,6 +1,5 @@
 import Header from "@/components/Header";
 import Link from "next/link";
-import { lugares } from "@/data/lugares";
 
 type IconeNome =
   | "waves"
@@ -96,6 +95,58 @@ const itensParceiro = [
   "Acompanhar o status da análise",
   "Ativar Plano Destaque",
   "Aparecer no catálogo turístico após aprovação",
+];
+
+const resumoCatalogo = {
+  totalLocais: 19,
+  totalCidades: 9,
+  totalCategorias: categorias.length,
+};
+
+const experienciasInicio: {
+  titulo: string;
+  descricao: string;
+  href: string;
+  cta: string;
+  destaque: string;
+  icone: IconeNome;
+}[] = [
+  {
+    titulo: "Explorar pontos turísticos",
+    descricao:
+      "Veja praias, espaços culturais, natureza e experiências locais cadastradas no catálogo.",
+    href: "/explorar",
+    cta: "Explorar agora",
+    destaque: "Catálogo",
+    icone: "compass",
+  },
+  {
+    titulo: "Criar roteiro personalizado",
+    descricao:
+      "Monte uma sugestão de viagem com base em tempo, orçamento, transporte e interesses.",
+    href: "/criar-roteiro",
+    cta: "Criar roteiro",
+    destaque: "Roteiro",
+    icone: "suitcase",
+  },
+  {
+    titulo: "Ver mapa interativo",
+    descricao:
+      "Visualize pontos turísticos no mapa e organize melhor as paradas do passeio.",
+    href: "/mapa",
+    cta: "Abrir mapa",
+    destaque: "Mapa",
+    icone: "landmark",
+  },
+  {
+    titulo: "Acompanhar passaporte",
+    descricao:
+      "Faça check-ins, desbloqueie selos virtuais e acompanhe sua jornada pela Paraíba.",
+    href: "/passaporte",
+    cta: "Ver passaporte",
+    destaque: "Gamificação",
+    icone: "star",
+  },
 ];
 
 function Icone({
@@ -276,25 +327,8 @@ function Icone({
   );
 }
 
-function classeImagem(imagemClasse: string) {
-  const classe = String(imagemClasse ?? "").trim();
-
-  if (!classe) {
-    return "bg-gradient-to-br from-cyan-300 to-blue-500";
-  }
-
-  if (classe.includes("bg-")) {
-    return classe;
-  }
-
-  return `bg-gradient-to-br ${classe}`;
-}
-
 export default function Home() {
-  const destaques = lugares.slice(0, 4);
-  const totalLocais = lugares.length;
-  const totalCidades = new Set(lugares.map((lugar) => lugar.cidade)).size;
-  const totalCategorias = new Set(lugares.map((lugar) => lugar.categoria)).size;
+  const { totalLocais, totalCidades, totalCategorias } = resumoCatalogo;
 
   return (
     <main className="min-h-screen bg-[#F5F7F8] text-[#0F2433]">
@@ -587,49 +621,60 @@ export default function Home() {
           <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="font-heading font-black text-[#10B981]">
-                Roteiros em destaque
+                Jornada turística
               </p>
 
               <h2 className="font-heading mt-1 text-3xl font-black text-[#0F2433]">
-                Ideias prontas para começar
+                Comece sua experiência pelo caminho certo
               </h2>
+
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-[#45617A]">
+                Acesse as áreas principais do Roteirize PB sem depender de
+                roteiros fixos: explore lugares, gere uma rota, acompanhe o mapa
+                e registre sua evolução no passaporte digital.
+              </p>
             </div>
 
             <Link
-              href="/criar-roteiro"
+              href="/explorar"
               className="font-heading rounded-full border border-slate-200 px-6 py-3 text-sm font-black text-[#0F4C5C] transition hover:border-[#10B981] hover:text-[#10B981]"
             >
-              Criar roteiro
+              Ver catálogo completo
             </Link>
           </div>
 
-          <div className="grid gap-5 md:grid-cols-4">
-            {destaques.map((lugar) => (
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            {experienciasInicio.map((item) => (
               <Link
-                key={lugar.id}
-                href={`/lugares/${lugar.id}`}
-                className="card-shadow overflow-hidden rounded-3xl bg-white transition hover:-translate-y-1"
+                key={item.href}
+                href={item.href}
+                className="card-shadow group flex min-h-[260px] flex-col justify-between rounded-3xl border border-slate-100 bg-white p-6 transition hover:-translate-y-1 hover:border-[#10B981]/40 hover:shadow-xl"
               >
-                <div className={`${classeImagem(lugar.imagemClasse)} h-36`} />
+                <div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="font-heading rounded-full bg-[#10B981]/10 px-3 py-1 text-xs font-black text-[#0F4C5C]">
+                      {item.destaque}
+                    </span>
 
-                <div className="p-5">
-                  <p className="text-xs font-black uppercase text-[#10B981]">
-                    {lugar.categoria}
-                  </p>
+                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#10B981]/10 text-[#0F4C5C] transition group-hover:bg-[#0F4C5C] group-hover:text-white">
+                      <Icone nome={item.icone} className="h-5 w-5" />
+                    </span>
+                  </div>
 
-                  <h3 className="font-heading mt-2 text-lg font-black text-[#0F2433]">
-                    {lugar.nome}
+                  <h3 className="font-heading mt-5 text-xl font-black text-[#0F2433]">
+                    {item.titulo}
                   </h3>
 
-                  <p className="mt-2 text-sm text-[#45617A]">
-                    {lugar.cidade} <span aria-hidden="true">•</span>{" "}
-                    {lugar.tempoSugeridoMin} min
+                  <p className="mt-3 text-sm leading-6 text-[#45617A]">
+                    {item.descricao}
                   </p>
+                </div>
 
-                  <p className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-amber-600">
-                    <Icone nome="star" className="h-4 w-4" />
-                    {lugar.nota}
-                  </p>
+                <div className="font-heading mt-6 inline-flex items-center text-sm font-black text-[#0F4C5C] transition group-hover:text-[#10B981]">
+                  {item.cta}
+                  <span className="ml-2 transition group-hover:translate-x-1">
+                    →
+                  </span>
                 </div>
               </Link>
             ))}
